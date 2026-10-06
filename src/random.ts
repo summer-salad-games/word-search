@@ -33,6 +33,12 @@ function checked(source: RandomSource): RandomSource {
 }
 
 export function createRandom(seed?: number | string, random?: RandomSource): RandomSource {
+  if (seed !== undefined && typeof seed !== "number" && typeof seed !== "string") {
+    throw new PuzzleValidationError("seed must be a finite number or a string.");
+  }
+  if (random !== undefined && typeof random !== "function") {
+    throw new PuzzleValidationError("random must be a function when provided.");
+  }
   if (seed !== undefined && random !== undefined) {
     throw new PuzzleValidationError("Provide either seed or random, not both.");
   }

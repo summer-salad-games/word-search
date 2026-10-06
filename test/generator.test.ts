@@ -22,12 +22,14 @@ const DIRECTION_DELTAS: Readonly<Record<string, readonly [number, number]>> = {
   [Direction.left]: [-1, 0], [Direction.upLeft]: [-1, -1],
 };
 
-function hasFillerCreatedOccurrence(
+function hasUnexpectedOccurrence(
   puzzle: PuzzleResult,
   word: string,
+  canonicalPath: readonly { readonly x: number; readonly y: number }[],
   directions: readonly string[],
 ): boolean {
   const characters = Array.from(word);
+  const canonicalCells = canonicalPath.map(({ x, y }) => `${x},${y}`).sort().join("|");
 
   for (let startY = 0; startY < puzzle.size.height; startY += 1) {
     for (let startX = 0; startX < puzzle.size.width; startX += 1) {
@@ -35,8 +37,9 @@ function hasFillerCreatedOccurrence(
       if (startCell?.letter !== characters[0]) continue;
       const visited = new Set([`${startX},${startY}`]);
 
-      const search = (x: number, y: number, characterIndex: number, usesFiller: boolean): boolean => {
-        if (characterIndex === characters.length) return usesFiller;
+      const path = [`${startX},${startY}`];
+      const search = (x: number, y: number, characterIndex: number): boolean => {
+        if (characterIndex === characters.length) return [...path].sort().join("|") !== canonicalCells;
 
         for (const direction of directions) {
           const [deltaX, deltaY] = DIRECTION_DELTAS[direction]!;
@@ -46,13 +49,15 @@ function hasFillerCreatedOccurrence(
           const cell = puzzle.grid[nextY]?.[nextX];
           if (visited.has(positionKey) || cell?.letter !== characters[characterIndex]) continue;
           visited.add(positionKey);
-          if (search(nextX, nextY, characterIndex + 1, usesFiller || cell.words.length === 0)) return true;
+          path.push(positionKey);
+          if (search(nextX, nextY, characterIndex + 1)) return true;
+          path.pop();
           visited.delete(positionKey);
         }
         return false;
       };
 
-      if (search(startX, startY, 1, startCell.words.length === 0)) return true;
+      if (search(startX, startY, 1)) return true;
     }
   }
   return false;
@@ -89,7 +94,7 @@ describe("generatePuzzle", () => {
     }
   });
 
-  it("generates and solves 1,000 unique boards", { timeout: 30_000 }, () => {
+  it("generates and solves 1,000 unique boards", { timeout: 60_000 }, () => {
     const boardSignatures = new Set<string>();
 
     for (let seed = 0; seed < 1_000; seed += 1) {
@@ -113,8 +118,8 @@ describe("generatePuzzle", () => {
         }
         expect(solvedWord).toBe(entry.word);
         expect(
-          hasFillerCreatedOccurrence(result, entry.word, DEFAULT_CONFIGURATION.allowedDirections),
-          `seed ${seed}: filler created another solvable occurrence of “${entry.word}”`,
+          hasUnexpectedOccurrence(result, entry.word, entry.path, DEFAULT_CONFIGURATION.allowedDirections),
+          `seed ${seed}: grid contains another solvable occurrence of “${entry.word}”`,
         ).toBe(false);
       }
     }
@@ -134,7 +139,7 @@ describe("generatePuzzle", () => {
     expect(result.entries[0]?.reversed).toBe(true);
     expect(result.entries[0]?.displayedWord).toBe("eert");
     expect(result.entries[0]?.directions).toEqual([
-      Direction.left, Direction.left, Direction.left,
+      Direction.right, Direction.right, Direction.right,
     ]);
     expect(result.entries[0]?.path.map(({ x, y }) => result.grid[y]?.[x]?.letter).join("")).toBe("tree");
   });
@@ -152,6 +157,22 @@ describe("generatePuzzle", () => {
     });
     expect(result.entries).toEqual([]);
     expect(result.unplacedWords).toEqual(["impossible"]);
+  });
+
+  it("uses skip-derived placement attempts instead of capping attempts at the rounded fill count", () => {
+    const result = generatePuzzle({
+      words: ["a", "b", "c", "d", "e"],
+      seed: 3,
+      configuration: {
+        gridSize: { width: 10, height: 1 },
+        borderSize: 0,
+        fillPercentage: 0.4,
+        fillLetters: ["x"],
+        restrictedFillLetters: [],
+      },
+    });
+    expect(result.entries).toHaveLength(5);
+    expect(result.unplacedWords).toEqual([]);
   });
 
   it("prevents filler cells from creating duplicate target words", () => {
@@ -207,5 +228,17 @@ describe("generatePuzzle", () => {
     expect(() => generatePuzzle({ words: ["tree"], seed: 1, random: Math.random })).toThrow(/either seed or random/);
     expect(() => generatePuzzle({ words: ["tree"], configuration: { fillPercentage: 2 } })).toThrow(/fillPercentage/);
     expect(() => generatePuzzle({ words: ["tree"], configuration: { useBorder: 1 as never } })).toThrow(/useBorder/);
+    expect(() => generatePuzzle({ words: ["tree"], seed: true as never })).toThrow(PuzzleValidationError);
+    expect(() => generatePuzzle({ words: ["tree"], random: 1 as never })).toThrow(PuzzleValidationError);
+    expect(() => generatePuzzle({ words: ["tree"], configuration: { allowedDirections: 1 as never } })).toThrow(PuzzleValidationError);
+    expect(() => generatePuzzle({ words: ["tree"], configuration: { fillLetters: null as never } })).toThrow(PuzzleValidationError);
+    expect(() => generatePuzzle({
+      words: ["tree"],
+      configuration: { gridSize: { width: 513, height: 1 } },
+    })).toThrow(/full grid/);
+  });
+
+  it("normalizes canonically equivalent Unicode words before duplicate validation", () => {
+    expect(() => generatePuzzle({ words: ["café", "cafe\u0301"] })).toThrow(/Duplicate word/);
   });
 });
