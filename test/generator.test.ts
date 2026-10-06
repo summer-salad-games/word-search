@@ -1,0 +1,88 @@
+import { describe, expect, it } from "vitest";
+import { Direction, generatePuzzle, PuzzleValidationError } from "../src/index.js";
+
+describe("generatePuzzle", () => {
+  it("is repeatable with a seed and returns the full grid", () => {
+    const input = { words: ["sun", "tree", "cloud", "forest"], seed: "nature" } as const;
+    const first = generatePuzzle(input);
+    const second = generatePuzzle(input);
+    expect(first).toEqual(second);
+    expect(first.size).toEqual({ width: 17, height: 19 });
+    expect(first.grid).toHaveLength(19);
+    expect(first.grid[0]).toHaveLength(17);
+  });
+
+  it("places each entry along adjacent cells containing its Unicode code points", () => {
+    const result = generatePuzzle({
+      words: ["café", "🌳tree", "moss"],
+      seed: 42,
+      configuration: { fillPercentage: 1 },
+    });
+    expect(result.unplacedWords).toEqual([]);
+    for (const entry of result.entries) {
+      expect(entry.path).toHaveLength(Array.from(entry.word).length);
+      entry.path.forEach((position, index) => {
+        expect(result.grid[position.y]?.[position.x]?.letter).toBe(Array.from(entry.word)[index]);
+      });
+      entry.directions.forEach((direction, index) => {
+        const from = entry.path[index]!;
+        const to = entry.path[index + 1]!;
+        const deltas: Record<string, readonly [number, number]> = {
+          [Direction.up]: [0, -1], [Direction.upRight]: [1, -1],
+          [Direction.right]: [1, 0], [Direction.downRight]: [1, 1],
+          [Direction.down]: [0, 1], [Direction.downLeft]: [-1, 1],
+          [Direction.left]: [-1, 0], [Direction.upLeft]: [-1, -1],
+        };
+        expect([to.x - from.x, to.y - from.y]).toEqual(deltas[direction]);
+      });
+    }
+  });
+
+  it("reports canonical paths and directions for reversed words", () => {
+    const result = generatePuzzle({
+      words: ["tree"],
+      random: () => 0,
+      configuration: {
+        gridSize: { width: 4, height: 1 }, borderSize: 0, fillPercentage: 1,
+        reverseWordProbability: 1, allowedDirections: [Direction.right],
+      },
+    });
+    expect(result.entries[0]?.reversed).toBe(true);
+    expect(result.entries[0]?.displayedWord).toBe("eert");
+    expect(result.entries[0]?.directions).toEqual([
+      Direction.left, Direction.left, Direction.left,
+    ]);
+    expect(result.entries[0]?.path.map(({ x, y }) => result.grid[y]?.[x]?.letter).join("")).toBe("tree");
+  });
+
+  it("reports words that cannot fit", () => {
+    const result = generatePuzzle({
+      words: ["impossible"],
+      seed: 1,
+      configuration: {
+        gridSize: { width: 1, height: 1 },
+        borderSize: 0,
+        useBorder: false,
+        fillPercentage: 1,
+      },
+    });
+    expect(result.entries).toEqual([]);
+    expect(result.unplacedWords).toEqual(["impossible"]);
+  });
+
+  it("does not mutate input", () => {
+    const words = [" Alpha ", "Beta"];
+    const directions = [Direction.right, Direction.down];
+    generatePuzzle({ words, seed: 7, configuration: { allowedDirections: directions } });
+    expect(words).toEqual([" Alpha ", "Beta"]);
+    expect(directions).toEqual([Direction.right, Direction.down]);
+  });
+
+  it("rejects invalid and ambiguous input", () => {
+    expect(() => generatePuzzle({ words: [" "] })).toThrow(PuzzleValidationError);
+    expect(() => generatePuzzle({ words: ["Tree", " tree "] })).toThrow(/Duplicate word/);
+    expect(() => generatePuzzle({ words: ["tree"], seed: 1, random: Math.random })).toThrow(/either seed or random/);
+    expect(() => generatePuzzle({ words: ["tree"], configuration: { fillPercentage: 2 } })).toThrow(/fillPercentage/);
+    expect(() => generatePuzzle({ words: ["tree"], configuration: { useBorder: 1 as never } })).toThrow(/useBorder/);
+  });
+});
