@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { Direction, generatePuzzle, PuzzleGenerationError, PuzzleValidationError } from "../src/index.js";
+import {
+  DEFAULT_CONFIGURATION,
+  Direction,
+  generatePuzzle,
+  PuzzleGenerationError,
+  PuzzleValidationError,
+  type PuzzleResult,
+} from "../src/index.js";
 
 const NATURE_WORDS = [
   "sun", "sky", "bee", "oak", "fog", "sea", "ant", "ice", "bug", "mud",
@@ -14,6 +21,42 @@ const DIRECTION_DELTAS: Readonly<Record<string, readonly [number, number]>> = {
   [Direction.down]: [0, 1], [Direction.downLeft]: [-1, 1],
   [Direction.left]: [-1, 0], [Direction.upLeft]: [-1, -1],
 };
+
+function hasFillerCreatedOccurrence(
+  puzzle: PuzzleResult,
+  word: string,
+  directions: readonly string[],
+): boolean {
+  const characters = Array.from(word);
+
+  for (let startY = 0; startY < puzzle.size.height; startY += 1) {
+    for (let startX = 0; startX < puzzle.size.width; startX += 1) {
+      const startCell = puzzle.grid[startY]?.[startX];
+      if (startCell?.letter !== characters[0]) continue;
+      const visited = new Set([`${startX},${startY}`]);
+
+      const search = (x: number, y: number, characterIndex: number, usesFiller: boolean): boolean => {
+        if (characterIndex === characters.length) return usesFiller;
+
+        for (const direction of directions) {
+          const [deltaX, deltaY] = DIRECTION_DELTAS[direction]!;
+          const nextX = x + deltaX;
+          const nextY = y + deltaY;
+          const positionKey = `${nextX},${nextY}`;
+          const cell = puzzle.grid[nextY]?.[nextX];
+          if (visited.has(positionKey) || cell?.letter !== characters[characterIndex]) continue;
+          visited.add(positionKey);
+          if (search(nextX, nextY, characterIndex + 1, usesFiller || cell.words.length === 0)) return true;
+          visited.delete(positionKey);
+        }
+        return false;
+      };
+
+      if (search(startX, startY, 1, startCell.words.length === 0)) return true;
+    }
+  }
+  return false;
+}
 
 describe("generatePuzzle", () => {
   it("is repeatable with a seed and returns the full grid", () => {
@@ -69,6 +112,10 @@ describe("generatePuzzle", () => {
           solvedWord += result.grid[position.y]?.[position.x]?.letter ?? "";
         }
         expect(solvedWord).toBe(entry.word);
+        expect(
+          hasFillerCreatedOccurrence(result, entry.word, DEFAULT_CONFIGURATION.allowedDirections),
+          `seed ${seed}: filler created another solvable occurrence of “${entry.word}”`,
+        ).toBe(false);
       }
     }
 
