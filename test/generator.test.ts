@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Direction, generatePuzzle, PuzzleValidationError } from "../src/index.js";
+import { Direction, generatePuzzle, PuzzleGenerationError, PuzzleValidationError } from "../src/index.js";
 
 describe("generatePuzzle", () => {
   it("is repeatable with a seed and returns the full grid", () => {
@@ -68,6 +68,45 @@ describe("generatePuzzle", () => {
     });
     expect(result.entries).toEqual([]);
     expect(result.unplacedWords).toEqual(["impossible"]);
+  });
+
+  it("prevents filler cells from creating duplicate target words", () => {
+    for (let seed = 0; seed < 100; seed += 1) {
+      const result = generatePuzzle({
+        words: ["aa"],
+        seed,
+        configuration: {
+          gridSize: { width: 8, height: 1 },
+          borderSize: 0,
+          fillPercentage: 0.125,
+          reverseWordProbability: 0,
+          allowedDirections: [Direction.right, Direction.left],
+          fillLetters: ["a", "b"],
+          restrictedFillLetters: [],
+        },
+      });
+      expect(result.entries).toHaveLength(1);
+      for (let x = 0; x < result.size.width - 1; x += 1) {
+        const pair = [result.grid[0]?.[x], result.grid[0]?.[x + 1]];
+        if (pair.every((cell) => cell?.letter === "a")) {
+          expect(pair.every((cell) => cell?.words.includes("aa"))).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("fails clearly when the filler alphabet makes uniqueness impossible", () => {
+    expect(() => generatePuzzle({
+      words: ["a"],
+      seed: 1,
+      configuration: {
+        gridSize: { width: 2, height: 1 },
+        borderSize: 0,
+        fillPercentage: 0.5,
+        fillLetters: ["a"],
+        restrictedFillLetters: [],
+      },
+    })).toThrow(PuzzleGenerationError);
   });
 
   it("does not mutate input", () => {

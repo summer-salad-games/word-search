@@ -1,6 +1,6 @@
 import { DEFAULT_CONFIGURATION } from "./configuration.js";
-import { ALL_DIRECTIONS, directionVector, isDiagonal } from "./directions.js";
-import { PuzzleValidationError } from "./errors.js";
+import { ALL_DIRECTIONS, directionVector, isDiagonal, oppositeDirection } from "./directions.js";
+import { PuzzleGenerationError, PuzzleValidationError } from "./errors.js";
 import { createRandom, randomIndex, shuffled, type RandomSource } from "./random.js";
 import {
   type Direction,
@@ -20,6 +20,11 @@ interface MutableCell {
 interface PathResult {
   readonly path: Position[];
   readonly directions: Direction[];
+}
+
+interface AccidentalOccurrence {
+  readonly path: readonly Position[];
+  readonly word: string;
 }
 
 const keyOf = ({ x, y }: Position): string => `${x},${y}`;
@@ -155,6 +160,98 @@ function candidateStarts(configuration: PuzzleConfiguration, random: RandomSourc
   const desired = Math.round(starts.length * configuration.fillPercentage);
   if (desired === 0) return [];
   return shuffled(starts, random).slice(0, desired);
+}
+
+function findAccidentalOccurrence(
+  grid: readonly (readonly MutableCell[])[],
+  entries: readonly PlacedWord[],
+  fillerPositions: ReadonlySet<string>,
+  directions: readonly Direction[],
+): AccidentalOccurrence | undefined {
+  const height = grid.length;
+  const width = grid[0]?.length ?? 0;
+
+  for (const entry of entries) {
+    const characters = Array.from(entry.word);
+    for (let startY = 0; startY < height; startY += 1) {
+      for (let startX = 0; startX < width; startX += 1) {
+        if (grid[startY]?.[startX]?.letter !== characters[0]) continue;
+        const start = { x: startX, y: startY };
+        const path: Position[] = [start];
+        const visited = new Set([keyOf(start)]);
+
+        const search = (characterIndex: number, includesFiller: boolean): Position[] | undefined => {
+          if (characterIndex === characters.length) return includesFiller ? [...path] : undefined;
+          const previous = path[path.length - 1]!;
+          for (const direction of directions) {
+            const vector = directionVector(direction);
+            const next = { x: previous.x + vector.x, y: previous.y + vector.y };
+            const nextKey = keyOf(next);
+            if (visited.has(nextKey) || grid[next.y]?.[next.x]?.letter !== characters[characterIndex]) continue;
+            path.push(next);
+            visited.add(nextKey);
+            const result = search(characterIndex + 1, includesFiller || fillerPositions.has(nextKey));
+            if (result !== undefined) return result;
+            visited.delete(nextKey);
+            path.pop();
+          }
+          return undefined;
+        };
+
+        const result = search(1, fillerPositions.has(keyOf(start)));
+        if (result !== undefined) return { path: result, word: entry.word };
+      }
+    }
+  }
+  return undefined;
+}
+
+function fillWithoutAccidentalWords(
+  grid: MutableCell[][],
+  entries: readonly PlacedWord[],
+  configuration: PuzzleConfiguration,
+  fillLetters: readonly string[],
+  random: RandomSource,
+): void {
+  const border = configuration.borderSize;
+  const fullHeight = grid.length;
+  const fullWidth = grid[0]?.length ?? 0;
+  const fillerPositions = new Set<string>();
+
+  for (let y = 0; y < fullHeight; y += 1) {
+    for (let x = 0; x < fullWidth; x += 1) {
+      const isBorder = x < border || y < border || x >= fullWidth - border || y >= fullHeight - border;
+      const cell = grid[y]![x]!;
+      if (cell.letter === "" && (configuration.fillBorder || !isBorder)) {
+        cell.letter = fillLetters[randomIndex(fillLetters.length, random)]!;
+        fillerPositions.add(keyOf({ x, y }));
+      }
+    }
+  }
+
+  if (entries.length === 0 || fillerPositions.size === 0) return;
+  const solveDirections = [...new Set([
+    ...configuration.allowedDirections,
+    ...configuration.allowedDirections.map(oppositeDirection),
+  ])];
+  const maxRepairs = Math.max(1_000, fillerPositions.size * fillLetters.length * 10);
+
+  for (let repair = 0; repair < maxRepairs; repair += 1) {
+    const occurrence = findAccidentalOccurrence(grid, entries, fillerPositions, solveDirections);
+    if (occurrence === undefined) return;
+    const repairablePositions = occurrence.path.filter((position) => fillerPositions.has(keyOf(position)));
+    const position = repairablePositions[randomIndex(repairablePositions.length, random)]!;
+    const cell = grid[position.y]![position.x]!;
+    const alternatives = shuffled(fillLetters.filter((letter) => letter !== cell.letter), random);
+    if (alternatives.length === 0) {
+      throw new PuzzleGenerationError(
+        `Cannot prevent an accidental occurrence of “${occurrence.word}” with the configured fill letters.`,
+      );
+    }
+    cell.letter = alternatives[0]!;
+  }
+
+  throw new PuzzleGenerationError("Could not fill the grid without creating duplicate target words.");
 }
 
 function freezeResult(
@@ -326,15 +423,7 @@ export function generatePuzzle(input: PuzzleInput): PuzzleResult {
 
   const restricted = new Set(configuration.restrictedFillLetters);
   const fillLetters = configuration.fillLetters.filter((letter) => !restricted.has(letter));
-  for (let y = 0; y < fullHeight; y += 1) {
-    for (let x = 0; x < fullWidth; x += 1) {
-      const isBorder = x < border || y < border || x >= fullWidth - border || y >= fullHeight - border;
-      const cell = grid[y]![x]!;
-      if (cell.letter === "" && (configuration.fillBorder || !isBorder)) {
-        cell.letter = fillLetters[randomIndex(fillLetters.length, random)]!;
-      }
-    }
-  }
+  fillWithoutAccidentalWords(grid, entries, configuration, fillLetters, random);
 
   return freezeResult(grid, configuration, shuffled(entries, random), words.filter((word) => remaining.has(word)), input.theme);
 }

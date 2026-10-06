@@ -30,3 +30,13 @@ export function isDiagonal(direction: Direction): boolean {
   const vector = directionVector(direction);
   return vector.x !== 0 && vector.y !== 0;
 }
+
+export function oppositeDirection(direction: Direction): Direction {
+  const vector = directionVector(direction);
+  const opposite = ALL_DIRECTIONS.find((candidate) => {
+    const candidateVector = directionVector(candidate);
+    return candidateVector.x === -vector.x && candidateVector.y === -vector.y;
+  });
+  if (opposite === undefined) throw new Error(`No opposite direction for ${direction}.`);
+  return opposite;
+}

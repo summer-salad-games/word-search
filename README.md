@@ -46,6 +46,8 @@ Pass either `seed` for repeatable generation or `random` to inject a function re
 
 The generator validates all configuration at runtime. Words that remain impossible to place are returned in `unplacedWords`; this is a normal generation result rather than an exception.
 
+Random filler is checked before the result is returned. If filler letters accidentally form another valid path for a placed target word, the conflicting filler cells are rerolled. The search uses the configured directions and their opposites so reversed targets remain unambiguous. If the configured filler alphabet makes a unique fill impossible, generation throws `PuzzleGenerationError` instead of returning an ambiguous puzzle.
+
 ## Commands
 
 - `npm test` runs behavioral tests.
