@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { Direction, generatePuzzle, PuzzleGenerationError, PuzzleValidationError } from "../src/index.js";
 
+const NATURE_WORDS = [
+  "sun", "sky", "bee", "oak", "fog", "sea", "ant", "ice", "bug", "mud",
+  "rain", "tree", "wind", "leaf", "rock", "pine", "lily", "pond", "bird", "moss",
+  "cloud", "plant", "earth", "creek", "grass", "tulip", "beach", "flora", "fungi", "delta",
+  "forest", "canyon", "valley", "desert", "sunset", "meadow", "rapids", "garden", "stream", "flower",
+] as const;
+
+const DIRECTION_DELTAS: Readonly<Record<string, readonly [number, number]>> = {
+  [Direction.up]: [0, -1], [Direction.upRight]: [1, -1],
+  [Direction.right]: [1, 0], [Direction.downRight]: [1, 1],
+  [Direction.down]: [0, 1], [Direction.downLeft]: [-1, 1],
+  [Direction.left]: [-1, 0], [Direction.upLeft]: [-1, -1],
+};
+
 describe("generatePuzzle", () => {
   it("is repeatable with a seed and returns the full grid", () => {
     const input = { words: ["sun", "tree", "cloud", "forest"], seed: "nature" } as const;
@@ -27,15 +41,38 @@ describe("generatePuzzle", () => {
       entry.directions.forEach((direction, index) => {
         const from = entry.path[index]!;
         const to = entry.path[index + 1]!;
-        const deltas: Record<string, readonly [number, number]> = {
-          [Direction.up]: [0, -1], [Direction.upRight]: [1, -1],
-          [Direction.right]: [1, 0], [Direction.downRight]: [1, 1],
-          [Direction.down]: [0, 1], [Direction.downLeft]: [-1, 1],
-          [Direction.left]: [-1, 0], [Direction.upLeft]: [-1, -1],
-        };
-        expect([to.x - from.x, to.y - from.y]).toEqual(deltas[direction]);
+        expect([to.x - from.x, to.y - from.y]).toEqual(DIRECTION_DELTAS[direction]);
       });
     }
+  });
+
+  it("generates and solves 1,000 unique boards", { timeout: 30_000 }, () => {
+    const boardSignatures = new Set<string>();
+
+    for (let seed = 0; seed < 1_000; seed += 1) {
+      const result = generatePuzzle({ words: NATURE_WORDS, seed });
+      const signature = result.grid.map((row) => row.map((cell) => cell.letter).join("")).join("\n");
+      expect(boardSignatures.has(signature), `seed ${seed} produced a duplicate board`).toBe(false);
+      boardSignatures.add(signature);
+
+      expect(result.entries.length + result.unplacedWords.length).toBe(NATURE_WORDS.length);
+      for (const entry of result.entries) {
+        expect(entry.path).toHaveLength(Array.from(entry.word).length);
+        expect(entry.directions).toHaveLength(entry.path.length - 1);
+
+        let position = entry.path[0]!;
+        let solvedWord = result.grid[position.y]?.[position.x]?.letter ?? "";
+        for (let index = 0; index < entry.directions.length; index += 1) {
+          const [deltaX, deltaY] = DIRECTION_DELTAS[entry.directions[index]!]!;
+          position = { x: position.x + deltaX, y: position.y + deltaY };
+          expect(position).toEqual(entry.path[index + 1]);
+          solvedWord += result.grid[position.y]?.[position.x]?.letter ?? "";
+        }
+        expect(solvedWord).toBe(entry.word);
+      }
+    }
+
+    expect(boardSignatures.size).toBe(1_000);
   });
 
   it("reports canonical paths and directions for reversed words", () => {
