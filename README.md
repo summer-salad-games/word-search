@@ -46,7 +46,7 @@ Pass either `seed` for repeatable generation or `random` to inject a function re
 
 The generator validates all configuration at runtime. Words that remain impossible to place are returned in `unplacedWords`; this is a normal generation result rather than an exception.
 
-For predictable browser memory and recursion use, each word is limited to 256 Unicode code points. The complete grid, including borders, is limited to 512 cells per dimension and 262,144 cells in total.
+For predictable browser memory and recursion use, each word is limited to 256 Unicode code points. The complete grid, including borders, is limited to 512 cells per dimension and 65,536 cells in total.
 
 Every word placement is checked against the complete grid and rejected if it creates another valid solution for any target. Random filler receives the same check and conflicting filler cells are rerolled. If the configured filler alphabet makes a unique fill impossible, generation throws `PuzzleGenerationError` instead of returning an ambiguous puzzle.
 

@@ -175,6 +175,32 @@ describe("generatePuzzle", () => {
     expect(result.unplacedWords).toEqual([]);
   });
 
+  it("uses only strictly shorter words for smaller-word fallback", () => {
+    const commonInput = {
+      words: ["aaa", "b"],
+      random: () => 0.999,
+      configuration: {
+        gridSize: { width: 2, height: 1 },
+        borderSize: 0,
+        fillPercentage: 0.5,
+        reverseWordProbability: 0,
+        allowedDirections: [Direction.right],
+        fillLetters: ["x"],
+        restrictedFillLetters: [],
+      },
+    } as const;
+    const withFallback = generatePuzzle({
+      ...commonInput,
+      configuration: { ...commonInput.configuration, useSmallerWordFallback: true },
+    });
+    const withoutFallback = generatePuzzle({
+      ...commonInput,
+      configuration: { ...commonInput.configuration, useSmallerWordFallback: false },
+    });
+    expect(withFallback.entries.map((entry) => entry.word)).toEqual(["b"]);
+    expect(withoutFallback.entries).toEqual([]);
+  });
+
   it("prevents filler cells from creating duplicate target words", () => {
     for (let seed = 0; seed < 100; seed += 1) {
       const result = generatePuzzle({
@@ -230,12 +256,27 @@ describe("generatePuzzle", () => {
     expect(() => generatePuzzle({ words: ["tree"], configuration: { useBorder: 1 as never } })).toThrow(/useBorder/);
     expect(() => generatePuzzle({ words: ["tree"], seed: true as never })).toThrow(PuzzleValidationError);
     expect(() => generatePuzzle({ words: ["tree"], random: 1 as never })).toThrow(PuzzleValidationError);
+    expect(() => generatePuzzle({ words: ["tree"], random: () => 1 })).toThrow(PuzzleValidationError);
     expect(() => generatePuzzle({ words: ["tree"], configuration: { allowedDirections: 1 as never } })).toThrow(PuzzleValidationError);
     expect(() => generatePuzzle({ words: ["tree"], configuration: { fillLetters: null as never } })).toThrow(PuzzleValidationError);
+    expect(() => generatePuzzle({
+      words: ["tree"], configuration: { fillLetters: ["a", "a"], restrictedFillLetters: [] },
+    })).toThrow(/fillLetters must not contain duplicates/);
+    expect(() => generatePuzzle({
+      words: ["tree"], configuration: { restrictedFillLetters: ["a", "a"] },
+    })).toThrow(/restrictedFillLetters must not contain duplicates/);
+    expect(() => generatePuzzle({
+      words: ["tree"], configuration: { fillLetters: [1 as never] },
+    })).toThrow(/must be strings/);
     expect(() => generatePuzzle({
       words: ["tree"],
       configuration: { gridSize: { width: 513, height: 1 } },
     })).toThrow(/full grid/);
+    expect(() => generatePuzzle({
+      words: ["tree"],
+      configuration: { gridSize: { width: 512, height: 512 }, borderSize: 0 },
+    })).toThrow(/65,536 total cells/);
+    expect(() => generatePuzzle({ words: ["a".repeat(257)] })).toThrow(/256 Unicode code points/);
   });
 
   it("normalizes canonically equivalent Unicode words before duplicate validation", () => {

@@ -328,9 +328,9 @@ export function generatePuzzle(input: PuzzleInput): PuzzleResult {
   const fullWidth = configuration.gridSize.width + border * 2;
   const fullHeight = configuration.gridSize.height + border * 2;
   if (!Number.isSafeInteger(fullWidth) || !Number.isSafeInteger(fullHeight) ||
-      fullWidth > 512 || fullHeight > 512 || fullWidth * fullHeight > 262_144) {
+      fullWidth > 512 || fullHeight > 512 || fullWidth * fullHeight > 65_536) {
     throw new PuzzleValidationError(
-      "The full grid must not exceed 512 cells per dimension or 262,144 total cells.",
+      "The full grid must not exceed 512 cells per dimension or 65,536 total cells.",
     );
   }
   const grid: MutableCell[][] = Array.from({ length: fullHeight }, () =>
