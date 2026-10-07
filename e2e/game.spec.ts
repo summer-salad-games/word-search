@@ -63,6 +63,8 @@ test("rolls an incorrect selection back cell by cell", async ({ page }) => {
   await expect(page.locator(".game-footer")).toContainText("1 attempts");
   const letters = await page.locator(".puzzle-cell").allTextContents();
   await page.getByRole("button", { name: "Reset progress" }).click();
+  await expect(page.getByRole("dialog", { name: "What would you like to reset?" })).toBeVisible();
+  await page.getByRole("button", { name: "Reset current board" }).click();
   await expect(page.locator(".game-footer")).toContainText("0 attempts");
   expect(await page.locator(".puzzle-cell").allTextContents()).toEqual(letters);
 });
@@ -106,4 +108,46 @@ test("exposes console-only word highlighting in both color modes", async ({ page
   await expect(highlighted.first()).toHaveCSS("background-color", "rgb(160, 163, 166)");
   await page.evaluate(() => window.wordSearchDebug?.hideWords());
   await expect(highlighted).toHaveCount(0);
+});
+
+test("can cancel reset or erase all application state", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+  await page.locator(".puzzle-grid").waitFor();
+  await page.getByRole("button", { name: "Toggle color mode" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction("history", "readwrite");
+      transaction.objectStore("history").put({ id: "reset-test-history", completedAt: new Date().toISOString() });
+      transaction.oncomplete = () => resolve(); transaction.onerror = () => reject(transaction.error);
+    });
+    db.close();
+  });
+  await page.getByRole("button", { name: "Reset progress" }).click();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("dialog", { name: "What would you like to reset?" })).not.toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.getByRole("button", { name: "Reset progress" }).click();
+  await page.getByRole("button", { name: "Reset everything" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Nature" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator(".game-footer")).toContainText("0 attempts");
+  expect(await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    const transaction = db.transaction(["state", "history"], "readonly");
+    const stateKeys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+      const request = transaction.objectStore("state").getAllKeys(); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    const historyCount = await new Promise<number>((resolve, reject) => {
+      const request = transaction.objectStore("history").count(); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return { stateKeys, historyCount };
+  })).toEqual({ stateKeys: ["active-game"], historyCount: 0 });
 });

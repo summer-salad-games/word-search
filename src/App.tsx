@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { calculatePuzzleProfile, createSession, extendSelection, formatDuration, gameReducer, pathsMatch, positionKey, resetSession, GENERATOR_VERSION, type GameSession } from "./app-model.js";
-import { clearActiveGame, loadActiveGame, loadColorMode, loadHistory, saveActiveGame, saveColorMode, saveHistory, type ColorMode, type HistoryRecord } from "./persistence.js";
+import { clearActiveGame, loadActiveGame, loadColorMode, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveHistory, type ColorMode, type HistoryRecord } from "./persistence.js";
 import { getTheme, THEMES } from "./themes.js";
 import type { Position, PuzzleCell } from "./types.js";
 import "./styles.css";
@@ -234,20 +234,40 @@ function WinDialog({ session, onNext }: { readonly session: GameSession; readonl
   );
 }
 
-function Game({ initialSession, colorMode, onColorMode, onSession, onNext, onReset }: {
+function ResetDialog({ onBoard, onEverything, onClose }: {
+  readonly onBoard: () => void; readonly onEverything: () => void; readonly onClose: () => void;
+}) {
+  return (
+    <div className="overlay" role="presentation">
+      <section className="dialog reset-dialog" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+        <p className="eyebrow">Reset</p><h2 id="reset-title">What would you like to reset?</h2>
+        <p className="dialog-copy">Reset this board to replay the same puzzle, or erase everything and start as if you opened the game for the first time.</p>
+        <div className="reset-actions">
+          <button className="primary-button" onClick={onBoard}>Reset current board</button>
+          <button className="secondary-button danger-button" onClick={onEverything}>Reset everything</button>
+          <button className="secondary-button" onClick={onClose}>Cancel</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function Game({ initialSession, colorMode, onColorMode, onSession, onNext, onReset, onResetEverything }: {
   readonly initialSession: GameSession; readonly colorMode: ColorMode; readonly onColorMode: (mode: ColorMode) => void;
   readonly onSession: (session: GameSession) => void; readonly onNext: (session: GameSession) => void;
   readonly onReset: (session: GameSession) => void;
+  readonly onResetEverything: () => void;
 }) {
   const [session, dispatch] = useReducer(gameReducer, initialSession);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [hidden, setHidden] = useState(document.hidden);
   const [debugWords, setDebugWords] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const theme = getTheme(session.themeId);
   const colors = useMemo(() => new Map(session.targetWords.map((word, index) => [word, theme.colors[index % theme.colors.length]!])), [session.targetWords, theme.colors]);
   const attemptColor = theme.colors[session.attempts % theme.colors.length]!;
-  const { elapsed, getElapsed, pause } = useGameTimer(session, historyOpen || hidden, (value) => dispatch({ type: "set-elapsed", elapsedMs: value }));
+  const { elapsed, getElapsed, pause } = useGameTimer(session, historyOpen || resetOpen || hidden, (value) => dispatch({ type: "set-elapsed", elapsedMs: value }));
 
   useEffect(() => onSession(session), [onSession, session]);
   useEffect(() => {
@@ -290,7 +310,7 @@ function Game({ initialSession, colorMode, onColorMode, onSession, onNext, onRes
 
   return (
     <main className="app-shell">
-      <header className="topbar"><div><p className="eyebrow">Word search</p><h1>{theme.title}</h1></div><div className="topbar-actions"><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span><button className="icon-button" onClick={() => onReset(session)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
+      <header className="topbar"><div><p className="eyebrow">Word search</p><h1>{theme.title}</h1></div><div className="topbar-actions"><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
       <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
         const solved = session.solvedWords.includes(word);
         const style = solved ? { "--selection-color": session.solvedColors[word] ?? colors.get(word) } as CSSProperties : undefined;
@@ -299,6 +319,7 @@ function Game({ initialSession, colorMode, onColorMode, onSession, onNext, onRes
       <section className="board-stage"><PuzzleGrid session={session} colors={colors} onAttempt={onAttempt} attemptColor={attemptColor} debugWords={debugWords} /></section>
       <footer className="game-footer"><span>{session.solvedWords.length} / {session.targetWords.length} found</span><span>{session.attempts} attempts</span></footer>
       {historyOpen && <HistoryDialog records={history} onClose={() => setHistoryOpen(false)} />}
+      {resetOpen && <ResetDialog onBoard={() => onReset(session)} onEverything={onResetEverything} onClose={() => setResetOpen(false)} />}
       {session.status === "completed" && <WinDialog session={session} onNext={() => onNext(session)} />}
     </main>
   );
@@ -349,6 +370,15 @@ export default function App() {
     setSession(reset);
     void clearActiveGame().then(() => saveActiveGame(reset));
   }, []);
+  const resetEverything = useCallback(() => {
+    void resetApplicationState().then(() => {
+      const mode: ColorMode = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      const fresh = createSession(THEMES[0]!, calculatePuzzleProfile(viewport.width, viewport.height));
+      setColorMode(mode);
+      setSession(fresh);
+      void saveActiveGame(fresh);
+    }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not reset the application."));
+  }, [viewport.height, viewport.width]);
   const nextPuzzle = useCallback((current: GameSession) => {
     const currentIndex = THEMES.findIndex((theme) => theme.id === current.themeId);
     const nextTheme = THEMES[(currentIndex + 1) % THEMES.length]!;
@@ -361,5 +391,5 @@ export default function App() {
   const mobileLandscape = viewport.width < 900 && viewport.width > viewport.height;
   if (error !== undefined) return <main className="loading-screen"><p className="eyebrow">Something went wrong</p><h1>{error}</h1><button className="primary-button" onClick={() => location.reload()}>Try again</button></main>;
   if (session === undefined) return <main className="loading-screen"><div className="loader"/><p>Preparing your puzzle…</p></main>;
-  return <><Game key={session.id} initialSession={session} colorMode={colorMode} onColorMode={updateMode} onSession={updateSession} onNext={nextPuzzle} onReset={resetProgress}/>{mobileLandscape && <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for portrait play.</span></div>}</>;
+  return <><Game key={session.id} initialSession={session} colorMode={colorMode} onColorMode={updateMode} onSession={updateSession} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything}/>{mobileLandscape && <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for portrait play.</span></div>}</>;
 }

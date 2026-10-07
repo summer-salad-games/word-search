@@ -93,6 +93,8 @@ button { font: inherit; }
 .dialog { width: min(100%, 520px); max-height: min(82dvh, 720px); padding: clamp(22px, 5vw, 36px); overflow: auto; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); box-shadow: var(--shadow); animation: dialog-in 260ms cubic-bezier(.2,.8,.2,1); }
 .dialog header { display: flex; align-items: start; justify-content: space-between; }
 .dialog h2 { margin: 4px 0 0; font-size: 2rem; letter-spacing: -.04em; }
+.dialog-copy { margin: 16px 0 0; color: var(--muted); line-height: 1.55; }
+.reset-actions { display: grid; gap: 10px; margin-top: 26px; }
 .history-list { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 10px; }
 .history-list li { padding: 15px; border: 1px solid var(--line); border-radius: 14px; }
 .history-list li > div { display: flex; justify-content: space-between; gap: 12px; }
@@ -111,6 +113,10 @@ dd { margin: 0; font-weight: 720; font-variant-numeric: tabular-nums; }
 .primary-button { min-height: 48px; padding: 0 22px; border: 0; border-radius: 999px; background: var(--text); color: var(--background); font-weight: 750; cursor: pointer; transition: transform 130ms ease, opacity 130ms ease; }
 .primary-button:hover { transform: translateY(-1px); }
 .primary-button:active { transform: scale(.97); }
+.secondary-button { min-height: 48px; padding: 0 22px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--text); font-weight: 720; cursor: pointer; }
+.secondary-button:hover { background: var(--surface-soft); }
+.danger-button { border-color: #c94b4b; color: #b63838; }
+:root[data-theme="dark"] .danger-button { color: #ff8b8b; border-color: #a84949; }
 .loading-screen, .orientation-guard { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 14px; padding: 24px; text-align: center; }
 .loader { width: 30px; height: 30px; border: 2px solid var(--line); border-top-color: var(--text); border-radius: 50%; animation: spin .8s linear infinite; }
 .orientation-guard { position: fixed; inset: 0; z-index: 50; background: var(--background); }

@@ -74,6 +74,12 @@ export async function clearActiveGame(): Promise<void> {
   await (await database).delete("state", "active-game");
 }
 
+export async function resetApplicationState(): Promise<void> {
+  const db = await database;
+  const transaction = db.transaction(["state", "history"], "readwrite");
+  await Promise.all([transaction.objectStore("state").clear(), transaction.objectStore("history").clear(), transaction.done]);
+}
+
 export async function loadColorMode(): Promise<ColorMode> {
   const value = await (await database).get("state", "color-mode");
   return value === "light" || value === "dark" || value === "system" ? value : "system";
