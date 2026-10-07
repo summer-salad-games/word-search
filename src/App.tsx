@@ -335,28 +335,14 @@ export default function App() {
     void Promise.all([loadActiveGame(), loadColorMode()]).then(([active, mode]) => {
       const resolvedMode = mode === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode;
       const profile = calculatePuzzleProfile(viewport.width, viewport.height);
-      const compatible = active !== undefined && active.profile.columns === profile.columns && active.profile.rows === profile.rows;
       setColorMode(resolvedMode);
-      try { setSession(compatible ? active : createSession(THEMES[0]!, profile)); }
+      try { setSession(active ?? createSession(THEMES[0]!, profile)); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     }).catch(() => {
       try { setSession(createSession(THEMES[0]!, calculatePuzzleProfile(viewport.width, viewport.height))); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     });
   }, []);
-
-  useEffect(() => {
-    if (session === undefined) return;
-    const profile = calculatePuzzleProfile(viewport.width, viewport.height);
-    if (session.profile.columns === profile.columns && session.profile.rows === profile.rows) return;
-    try {
-      const replacement = createSession(getTheme(session.themeId), profile);
-      setSession(replacement);
-      void clearActiveGame().then(() => saveActiveGame(replacement));
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not resize the puzzle.");
-    }
-  }, [session, viewport.height, viewport.width]);
 
   useEffect(() => {
     const dark = colorMode === "dark" || (colorMode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
