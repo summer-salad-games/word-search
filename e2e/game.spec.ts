@@ -82,6 +82,13 @@ test("fits the page and toggles from system dark mode on the first click", async
   expect(cell!.width).toBeGreaterThanOrEqual(44);
   expect(cell!.height).toBeGreaterThanOrEqual(44);
   expect(Number.parseFloat(await page.locator(".puzzle-cell").first().evaluate((element) => getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16);
+  const spacing = await page.evaluate(() => {
+    const header = document.querySelector(".topbar")!.getBoundingClientRect();
+    const words = document.querySelector(".word-list")!.getBoundingClientRect();
+    const grid = document.querySelector(".puzzle-grid")!.getBoundingClientRect();
+    return { headerToWords: words.top - header.bottom, wordsToGrid: grid.top - words.bottom };
+  });
+  expect(spacing.headerToWords).toBeGreaterThan(spacing.wordsToGrid);
 });
 
 test("keeps a generated board unchanged across resizing and mobile orientation", async ({ browser }) => {
