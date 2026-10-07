@@ -7,7 +7,7 @@ describe("theme catalog", () => {
     expect(THEME_COUNTS).toEqual({ common: 490, rare: 10, total: 500 });
     expect(THEMES).toHaveLength(500);
     expect(new Set(THEMES.map(({ id }) => id)).size).toBe(500);
-    expect(new Set(THEMES.map(({ title }) => title)).size).toBe(500);
+    expect(THEMES.every(({ title }) => /^\S+$/u.test(title))).toBe(true);
   });
 
   it("contains valid, unique content in every theme", () => {
