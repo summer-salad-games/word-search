@@ -81,6 +81,7 @@ test("fits the page and toggles from system dark mode on the first click", async
   const cell = await page.locator(".puzzle-cell").first().boundingBox();
   expect(cell!.width).toBeGreaterThanOrEqual(44);
   expect(cell!.height).toBeGreaterThanOrEqual(44);
+  expect(Number.parseFloat(await page.locator(".puzzle-cell").first().evaluate((element) => getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16);
 });
 
 test("keeps a generated board unchanged across resizing and mobile orientation", async ({ browser }) => {
