@@ -40,6 +40,33 @@ function useViewport() {
   return viewport;
 }
 
+function useMobileLandscape(): boolean {
+  const read = () => {
+    const mobile = navigator.maxTouchPoints > 0 || matchMedia("(pointer: coarse)").matches;
+    const orientation = window.screen.orientation?.type;
+    const mediaLandscape = matchMedia("(orientation: landscape)").matches;
+    const screenLandscape = window.screen.width > window.screen.height;
+    const apiLandscape = orientation?.startsWith("landscape");
+    const landscape = apiLandscape !== undefined && apiLandscape === screenLandscape ? apiLandscape : mediaLandscape;
+    return mobile && landscape;
+  };
+  const [mobileLandscape, setMobileLandscape] = useState(read);
+  useEffect(() => {
+    const update = () => setMobileLandscape(read());
+    const orientation = window.screen.orientation;
+    const media = matchMedia("(orientation: landscape)");
+    orientation?.addEventListener("change", update);
+    media.addEventListener("change", update);
+    window.addEventListener("resize", update);
+    return () => {
+      orientation?.removeEventListener("change", update);
+      media.removeEventListener("change", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+  return mobileLandscape;
+}
+
 function useGameTimer(session: GameSession, paused: boolean, onElapsed: (value: number) => void) {
   const accumulated = useRef(session.elapsedMs);
   const startedAt = useRef<number | null>(session.status === "playing" && !paused ? performance.now() : null);
@@ -329,6 +356,7 @@ function Game({ initialSession, colorMode, onColorMode, onSession, onNext, onRes
 
 export default function App() {
   const viewport = useViewport();
+  const mobileLandscape = useMobileLandscape();
   const [session, setSession] = useState<GameSession>();
   const [colorMode, setColorMode] = useState<ColorMode>("system");
   const [error, setError] = useState<string>();
@@ -376,7 +404,6 @@ export default function App() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create the next puzzle."); }
   }, [viewport.height, viewport.width]);
 
-  const mobileLandscape = viewport.width < 900 && viewport.width > viewport.height;
   if (error !== undefined) return <main className="loading-screen"><p className="eyebrow">Something went wrong</p><h1>{error}</h1><button className="primary-button" onClick={() => location.reload()}>Try again</button></main>;
   if (session === undefined) return <main className="loading-screen"><div className="loader"/><p>Preparing your puzzle…</p></main>;
   return <><Game key={session.id} initialSession={session} colorMode={colorMode} onColorMode={updateMode} onSession={updateSession} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything}/>{mobileLandscape && <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for portrait play.</span></div>}</>;
