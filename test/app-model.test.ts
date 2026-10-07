@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculatePuzzleProfile, extendSelection, generateCompletePuzzle, pathsMatch } from "../src/app-model.js";
+import { calculatePuzzleProfile, createSession, extendSelection, generateCompletePuzzle, gameReducer, pathsMatch, resetSession } from "../src/app-model.js";
 import { THEMES } from "../src/themes.js";
 
 describe("application model", () => {
@@ -56,5 +56,19 @@ describe("application model", () => {
     expect(pathsMatch(expected, expected)).toBe(true);
     expect(pathsMatch([...expected].reverse(), expected)).toBe(true);
     expect(pathsMatch(expected.slice(0, 2), expected)).toBe(false);
+  });
+
+  it("resets progress without changing the generated puzzle", () => {
+    const session = createSession(THEMES[0]!, calculatePuzzleProfile(390, 844), "reset-test");
+    const progressed = gameReducer(session, { type: "attempt", word: session.targetWords[0]!, color: "#123456", elapsedMs: 12_345 });
+    const reset = resetSession(progressed);
+    expect(reset.id).not.toBe(progressed.id);
+    expect(reset.puzzle).toBe(progressed.puzzle);
+    expect(reset.targetWords).toBe(progressed.targetWords);
+    expect(reset.solvedWords).toEqual([]);
+    expect(reset.solvedColors).toEqual({});
+    expect(reset.attempts).toBe(0);
+    expect(reset.elapsedMs).toBe(0);
+    expect(reset.status).toBe("playing");
   });
 });

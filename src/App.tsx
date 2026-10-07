@@ -1,16 +1,27 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import { calculatePuzzleProfile, createSession, extendSelection, formatDuration, gameReducer, pathsMatch, positionKey, GENERATOR_VERSION, type GameSession } from "./app-model.js";
+import { calculatePuzzleProfile, createSession, extendSelection, formatDuration, gameReducer, pathsMatch, positionKey, resetSession, GENERATOR_VERSION, type GameSession } from "./app-model.js";
 import { clearActiveGame, loadActiveGame, loadColorMode, loadHistory, saveActiveGame, saveColorMode, saveHistory, type ColorMode, type HistoryRecord } from "./persistence.js";
 import { getTheme, THEMES } from "./themes.js";
 import type { Position, PuzzleCell } from "./types.js";
 import "./styles.css";
 
-function Icon({ name }: { readonly name: "history" | "moon" | "sun" | "close" }) {
+interface WordSearchDebugApi {
+  highlightWords(): void;
+  hideWords(): void;
+  toggleWords(): void;
+}
+
+declare global {
+  interface Window { wordSearchDebug?: WordSearchDebugApi }
+}
+
+function Icon({ name }: { readonly name: "history" | "reset" | "moon" | "sun" | "close" }) {
   const paths = {
     history: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></>,
     moon: <path d="M20 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/>,
     sun: <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></>,
     close: <path d="m6 6 12 12M18 6 6 18"/>,
+    reset: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></>,
   } as const;
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
@@ -70,9 +81,10 @@ interface GridProps {
   readonly colors: ReadonlyMap<string, string>;
   readonly onAttempt: (path: readonly Position[]) => string | undefined;
   readonly attemptColor: string;
+  readonly debugWords: boolean;
 }
 
-function PuzzleGrid({ session, colors, onAttempt, attemptColor }: GridProps) {
+function PuzzleGrid({ session, colors, onAttempt, attemptColor, debugWords }: GridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const pointerId = useRef<number | null>(null);
   const [selection, setSelection] = useState<Position[]>([]);
@@ -80,6 +92,7 @@ function PuzzleGrid({ session, colors, onAttempt, attemptColor }: GridProps) {
   const [rejectingCell, setRejectingCell] = useState<string>();
   const [locked, setLocked] = useState(false);
   const activeKeys = useMemo(() => new Set(selection.map(positionKey)), [selection]);
+  const debugKeys = useMemo(() => new Set(session.puzzle.entries.flatMap((entry) => entry.path.map(positionKey))), [session.puzzle.entries]);
   const solvedCells = useMemo(() => {
     const result = new Map<string, string>();
     for (const entry of session.puzzle.entries) {
@@ -179,7 +192,7 @@ function PuzzleGrid({ session, colors, onAttempt, attemptColor }: GridProps) {
             data-x={cell.position.x}
             data-y={cell.position.y}
             aria-label={`Row ${cell.position.y + 1}, column ${cell.position.x + 1}, ${cell.letter || "empty"}`}
-            className={`puzzle-cell${cell.isBorder ? " is-border" : ""}${activeKeys.has(key) ? " is-active" : ""}${solvedColor !== undefined ? " is-solved" : ""}${rejectingCell === key ? " is-rejecting" : ""}`}
+            className={`puzzle-cell${cell.isBorder ? " is-border" : ""}${activeKeys.has(key) ? " is-active" : ""}${solvedColor !== undefined ? " is-solved" : ""}${rejectingCell === key ? " is-rejecting" : ""}${debugWords && debugKeys.has(key) ? " is-debug" : ""}`}
             style={cellStyle}
           >
             <span>{cell.letter}</span>
@@ -221,14 +234,16 @@ function WinDialog({ session, onNext }: { readonly session: GameSession; readonl
   );
 }
 
-function Game({ initialSession, colorMode, onColorMode, onSession, onNext }: {
+function Game({ initialSession, colorMode, onColorMode, onSession, onNext, onReset }: {
   readonly initialSession: GameSession; readonly colorMode: ColorMode; readonly onColorMode: (mode: ColorMode) => void;
   readonly onSession: (session: GameSession) => void; readonly onNext: (session: GameSession) => void;
+  readonly onReset: (session: GameSession) => void;
 }) {
   const [session, dispatch] = useReducer(gameReducer, initialSession);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [hidden, setHidden] = useState(document.hidden);
+  const [debugWords, setDebugWords] = useState(false);
   const theme = getTheme(session.themeId);
   const colors = useMemo(() => new Map(session.targetWords.map((word, index) => [word, theme.colors[index % theme.colors.length]!])), [session.targetWords, theme.colors]);
   const attemptColor = theme.colors[session.attempts % theme.colors.length]!;
@@ -249,6 +264,15 @@ function Game({ initialSession, colorMode, onColorMode, onSession, onNext }: {
     if (session.status !== "completed" || session.completedAt === undefined) return;
     void saveHistory({ id: session.id, themeId: session.themeId, themeTitle: theme.title, seed: session.seed, elapsedMs: session.elapsedMs, wordCount: session.targetWords.length, attempts: session.attempts, completedAt: session.completedAt, profile: session.profile, generatorVersion: GENERATOR_VERSION });
   }, [session, theme.title]);
+  useEffect(() => {
+    const api: WordSearchDebugApi = {
+      highlightWords: () => setDebugWords(true),
+      hideWords: () => setDebugWords(false),
+      toggleWords: () => setDebugWords((current) => !current),
+    };
+    window.wordSearchDebug = api;
+    return () => { if (window.wordSearchDebug === api) delete window.wordSearchDebug; };
+  }, []);
 
   const onAttempt = (path: readonly Position[]) => {
     const match = session.puzzle.entries.find((entry) => !session.solvedWords.includes(entry.word) && pathsMatch(path, entry.path));
@@ -266,13 +290,13 @@ function Game({ initialSession, colorMode, onColorMode, onSession, onNext }: {
 
   return (
     <main className="app-shell">
-      <header className="topbar"><div><p className="eyebrow">Word search</p><h1>{theme.title}</h1></div><div className="topbar-actions"><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
+      <header className="topbar"><div><p className="eyebrow">Word search</p><h1>{theme.title}</h1></div><div className="topbar-actions"><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span><button className="icon-button" onClick={() => onReset(session)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
       <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
         const solved = session.solvedWords.includes(word);
         const style = solved ? { "--selection-color": session.solvedColors[word] ?? colors.get(word) } as CSSProperties : undefined;
         return <span key={word} className={`word-chip${solved ? " is-solved" : ""}`} style={style}>{word}</span>;
       })}</section>
-      <section className="board-stage"><PuzzleGrid session={session} colors={colors} onAttempt={onAttempt} attemptColor={attemptColor} /></section>
+      <section className="board-stage"><PuzzleGrid session={session} colors={colors} onAttempt={onAttempt} attemptColor={attemptColor} debugWords={debugWords} /></section>
       <footer className="game-footer"><span>{session.solvedWords.length} / {session.targetWords.length} found</span><span>{session.attempts} attempts</span></footer>
       {historyOpen && <HistoryDialog records={history} onClose={() => setHistoryOpen(false)} />}
       {session.status === "completed" && <WinDialog session={session} onNext={() => onNext(session)} />}
@@ -320,6 +344,11 @@ export default function App() {
 
   const updateMode = (mode: ColorMode) => { setColorMode(mode); void saveColorMode(mode); };
   const updateSession = useCallback((next: GameSession) => { setSession(next); void saveActiveGame(next); }, []);
+  const resetProgress = useCallback((current: GameSession) => {
+    const reset = resetSession(current);
+    setSession(reset);
+    void clearActiveGame().then(() => saveActiveGame(reset));
+  }, []);
   const nextPuzzle = useCallback((current: GameSession) => {
     const currentIndex = THEMES.findIndex((theme) => theme.id === current.themeId);
     const nextTheme = THEMES[(currentIndex + 1) % THEMES.length]!;
@@ -332,5 +361,5 @@ export default function App() {
   const mobileLandscape = viewport.width < 900 && viewport.width > viewport.height;
   if (error !== undefined) return <main className="loading-screen"><p className="eyebrow">Something went wrong</p><h1>{error}</h1><button className="primary-button" onClick={() => location.reload()}>Try again</button></main>;
   if (session === undefined) return <main className="loading-screen"><div className="loader"/><p>Preparing your puzzle…</p></main>;
-  return <><Game key={session.id} initialSession={session} colorMode={colorMode} onColorMode={updateMode} onSession={updateSession} onNext={nextPuzzle}/>{mobileLandscape && <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for portrait play.</span></div>}</>;
+  return <><Game key={session.id} initialSession={session} colorMode={colorMode} onColorMode={updateMode} onSession={updateSession} onNext={nextPuzzle} onReset={resetProgress}/>{mobileLandscape && <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for portrait play.</span></div>}</>;
 }

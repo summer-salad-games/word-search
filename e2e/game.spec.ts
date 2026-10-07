@@ -61,6 +61,10 @@ test("rolls an incorrect selection back cell by cell", async ({ page }) => {
   await expect(page.locator(".puzzle-cell.is-active")).toHaveCount(0);
   await expect(page.locator(".puzzle-grid")).not.toHaveClass(/is-locked/);
   await expect(page.locator(".game-footer")).toContainText("1 attempts");
+  const letters = await page.locator(".puzzle-cell").allTextContents();
+  await page.getByRole("button", { name: "Reset progress" }).click();
+  await expect(page.locator(".game-footer")).toContainText("0 attempts");
+  expect(await page.locator(".puzzle-cell").allTextContents()).toEqual(letters);
 });
 
 test("fits the page and toggles from system dark mode on the first click", async ({ page }) => {
@@ -89,4 +93,17 @@ test("replaces a persisted desktop board when Chrome switches to phone emulation
   const cell = await page.locator(".puzzle-cell").first().boundingBox();
   expect(cell!.width).toBeGreaterThanOrEqual(44);
   await context.close();
+});
+
+test("exposes console-only word highlighting in both color modes", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".puzzle-grid").waitFor();
+  await page.evaluate(() => window.wordSearchDebug?.highlightWords());
+  const highlighted = page.locator(".puzzle-cell.is-debug");
+  await expect(highlighted.first()).toHaveCSS("background-color", "rgb(119, 122, 125)");
+  expect(await highlighted.count()).toBeGreaterThan(20);
+  await page.getByRole("button", { name: "Toggle color mode" }).click();
+  await expect(highlighted.first()).toHaveCSS("background-color", "rgb(160, 163, 166)");
+  await page.evaluate(() => window.wordSearchDebug?.hideWords());
+  await expect(highlighted).toHaveCount(0);
 });

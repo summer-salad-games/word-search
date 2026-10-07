@@ -127,6 +127,19 @@ export function createSession(theme: PuzzleTheme, profile: PuzzleProfile, seed =
   return { id: randomId(), themeId: theme.id, seed, puzzle, targetWords, solvedWords: [], solvedColors: {}, attempts: 0, elapsedMs: 0, status: "playing", profile };
 }
 
+export function resetSession(session: GameSession): GameSession {
+  const { completedAt: _completedAt, ...current } = session;
+  return {
+    ...current,
+    id: randomId(),
+    solvedWords: [],
+    solvedColors: {},
+    attempts: 0,
+    elapsedMs: 0,
+    status: "playing",
+  };
+}
+
 export const positionKey = ({ x, y }: Position): string => `${x},${y}`;
 
 export function pathsMatch(selected: readonly Position[], expected: readonly Position[]): boolean {
