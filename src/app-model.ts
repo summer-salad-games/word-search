@@ -1,7 +1,7 @@
 import { Direction, generatePuzzle, type Position, type PuzzleResult } from "./index.js";
 import type { PuzzleTheme } from "./themes.js";
 
-export const GENERATOR_VERSION = 2;
+export const GENERATOR_VERSION = 3;
 
 function randomId(): string {
   if (typeof globalThis.crypto.randomUUID === "function") return globalThis.crypto.randomUUID();
@@ -24,6 +24,7 @@ export interface GameSession {
   readonly puzzle: PuzzleResult;
   readonly targetWords: readonly string[];
   readonly solvedWords: readonly string[];
+  readonly solvedColors: Readonly<Record<string, string>>;
   readonly attempts: number;
   readonly elapsedMs: number;
   readonly status: "playing" | "completed";
@@ -32,7 +33,7 @@ export interface GameSession {
 }
 
 export type GameAction =
-  | { readonly type: "attempt"; readonly word?: string; readonly elapsedMs: number }
+  | { readonly type: "attempt"; readonly word?: string; readonly color: string; readonly elapsedMs: number }
   | { readonly type: "set-elapsed"; readonly elapsedMs: number };
 
 export function gameReducer(session: GameSession, action: GameAction): GameSession {
@@ -45,6 +46,9 @@ export function gameReducer(session: GameSession, action: GameAction): GameSessi
   return {
     ...session,
     solvedWords,
+    solvedColors: action.word === undefined || session.solvedWords.includes(action.word)
+      ? session.solvedColors
+      : { ...session.solvedColors, [action.word]: action.color },
     attempts: session.attempts + 1,
     elapsedMs: action.elapsedMs,
     status: completed ? "completed" : "playing",
@@ -56,18 +60,18 @@ export function calculatePuzzleProfile(viewportWidth: number, viewportHeight: nu
   const width = Math.max(280, viewportWidth);
   const height = Math.max(480, viewportHeight);
   if (width < 480) {
-    const columns = Math.max(8, Math.min(11, Math.floor((width - 28) / 31) - 2));
-    const rows = Math.max(10, Math.min(16, Math.floor((height - 250) / 29) - 2));
-    return { columns, rows, borderSize: 1, targetWordCount: Math.max(5, Math.min(7, Math.floor(columns * rows / 20))), preferredCellSize: 31 };
+    const columns = Math.max(6, Math.floor((width - 24) / 38) - 2);
+    const rows = Math.max(9, Math.floor((height - 235) / 38) - 2);
+    return { columns, rows, borderSize: 1, targetWordCount: Math.max(4, Math.floor(columns * rows / 11)), preferredCellSize: 44 };
   }
   if (width < 800) {
-    const columns = Math.max(11, Math.min(14, Math.floor((width - 48) / 36) - 2));
-    const rows = Math.max(14, Math.min(18, Math.floor((height - 250) / 34) - 2));
-    return { columns, rows, borderSize: 1, targetWordCount: Math.max(7, Math.min(10, Math.floor(columns * rows / 20))), preferredCellSize: 36 };
+    const columns = Math.max(9, Math.floor((width - 32) / 40) - 2);
+    const rows = Math.max(10, Math.floor((height - 240) / 39) - 2);
+    return { columns, rows, borderSize: 1, targetWordCount: Math.max(6, Math.floor(columns * rows / 14)), preferredCellSize: 44 };
   }
-  const columns = Math.max(15, Math.min(21, Math.floor((width - 96) / 42) - 2));
-  const rows = Math.max(15, Math.min(21, Math.floor((height - 230) / 40) - 2));
-  return { columns, rows, borderSize: 1, targetWordCount: Math.max(10, Math.min(14, Math.floor(columns * rows / 20))), preferredCellSize: 42 };
+  const columns = Math.max(14, Math.floor((width - 96) / 58) - 2);
+  const rows = Math.max(10, Math.floor((height - 255) / 50) - 2);
+  return { columns, rows, borderSize: 1, targetWordCount: Math.max(10, Math.min(14, Math.floor(columns * rows / 14))), preferredCellSize: 58 };
 }
 
 function hash(value: string): number {
@@ -101,7 +105,8 @@ export function generateCompletePuzzle(theme: PuzzleTheme, profile: PuzzleProfil
           wordsOverlap: false,
           selfIntersect: false,
           wordsIntersect: false,
-          fillPercentage: 0.3,
+          useBacktracking: true,
+          fillPercentage: 1,
         },
       });
       if (puzzle.unplacedWords.length === 0) return { puzzle, targetWords };
@@ -112,7 +117,7 @@ export function generateCompletePuzzle(theme: PuzzleTheme, profile: PuzzleProfil
 
 export function createSession(theme: PuzzleTheme, profile: PuzzleProfile, seed = randomId()): GameSession {
   const { puzzle, targetWords } = generateCompletePuzzle(theme, profile, seed);
-  return { id: randomId(), themeId: theme.id, seed, puzzle, targetWords, solvedWords: [], attempts: 0, elapsedMs: 0, status: "playing", profile };
+  return { id: randomId(), themeId: theme.id, seed, puzzle, targetWords, solvedWords: [], solvedColors: {}, attempts: 0, elapsedMs: 0, status: "playing", profile };
 }
 
 export const positionKey = ({ x, y }: Position): string => `${x},${y}`;

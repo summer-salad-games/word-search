@@ -16,9 +16,10 @@ function Icon({ name }: { readonly name: "history" | "moon" | "sun" | "close" })
 }
 
 function useViewport() {
-  const [viewport, setViewport] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  const read = () => ({ width: window.screen.width, height: window.screen.height });
+  const [viewport, setViewport] = useState(read);
   useEffect(() => {
-    const update = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+    const update = () => setViewport(read());
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
@@ -65,12 +66,14 @@ interface GridProps {
   readonly session: GameSession;
   readonly colors: ReadonlyMap<string, string>;
   readonly onAttempt: (path: readonly Position[]) => string | undefined;
+  readonly attemptColor: string;
 }
 
-function PuzzleGrid({ session, colors, onAttempt }: GridProps) {
+function PuzzleGrid({ session, colors, onAttempt, attemptColor }: GridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const pointerId = useRef<number | null>(null);
   const [selection, setSelection] = useState<Position[]>([]);
+  const [selectionColor, setSelectionColor] = useState<string>();
   const [rejectingCell, setRejectingCell] = useState<string>();
   const [locked, setLocked] = useState(false);
   const activeKeys = useMemo(() => new Set(selection.map(positionKey)), [selection]);
@@ -78,14 +81,14 @@ function PuzzleGrid({ session, colors, onAttempt }: GridProps) {
     const result = new Map<string, string>();
     for (const entry of session.puzzle.entries) {
       if (!session.solvedWords.includes(entry.word)) continue;
-      for (const position of entry.path) result.set(positionKey(position), colors.get(entry.word) ?? "#777");
+      for (const position of entry.path) result.set(positionKey(position), session.solvedColors[entry.word] ?? colors.get(entry.word) ?? "#777");
     }
     return result;
-  }, [colors, session.puzzle.entries, session.solvedWords]);
+  }, [colors, session.puzzle.entries, session.solvedColors, session.solvedWords]);
 
   const addCell = useCallback((position: Position) => {
-    if (!locked) setSelection((current) => extendSelection(current, position));
-  }, [locked]);
+    if (!locked && !solvedCells.has(positionKey(position))) setSelection((current) => extendSelection(current, position));
+  }, [locked, solvedCells]);
 
   const positionFromPointer = (event: PointerEvent<HTMLDivElement>): Position | undefined => {
     const element = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-cell]");
@@ -103,6 +106,7 @@ function PuzzleGrid({ session, colors, onAttempt }: GridProps) {
       if (last === undefined) {
         setRejectingCell(undefined);
         setSelection([]);
+        setSelectionColor(undefined);
         setLocked(false);
         return;
       }
@@ -125,7 +129,7 @@ function PuzzleGrid({ session, colors, onAttempt }: GridProps) {
     if (found === undefined) rollback(selection);
     else {
       setLocked(true);
-      window.setTimeout(() => { setSelection([]); setLocked(false); }, 280);
+      window.setTimeout(() => { setSelection([]); setSelectionColor(undefined); setLocked(false); }, 280);
     }
   };
 
@@ -133,6 +137,7 @@ function PuzzleGrid({ session, colors, onAttempt }: GridProps) {
     "--grid-columns": session.puzzle.size.width,
     "--grid-rows": session.puzzle.size.height,
     "--preferred-cell": `${session.profile.preferredCellSize}px`,
+    "--active-color": selectionColor ?? attemptColor,
   } as CSSProperties;
 
   return (
@@ -145,9 +150,10 @@ function PuzzleGrid({ session, colors, onAttempt }: GridProps) {
       onPointerDown={(event) => {
         if (locked || session.status !== "playing") return;
         const position = positionFromPointer(event);
-        if (position === undefined) return;
+        if (position === undefined || solvedCells.has(positionKey(position))) return;
         pointerId.current = event.pointerId;
         event.currentTarget.setPointerCapture(event.pointerId);
+        setSelectionColor(attemptColor);
         setSelection([position]);
       }}
       onPointerMove={(event) => {
@@ -222,6 +228,7 @@ function Game({ initialSession, colorMode, onColorMode, onSession, onNext }: {
   const [hidden, setHidden] = useState(document.hidden);
   const theme = getTheme(session.themeId);
   const colors = useMemo(() => new Map(session.targetWords.map((word, index) => [word, theme.colors[index % theme.colors.length]!])), [session.targetWords, theme.colors]);
+  const attemptColor = theme.colors[session.attempts % theme.colors.length]!;
   const { elapsed, getElapsed, pause } = useGameTimer(session, historyOpen || hidden, (value) => dispatch({ type: "set-elapsed", elapsedMs: value }));
 
   useEffect(() => onSession(session), [onSession, session]);
@@ -243,7 +250,7 @@ function Game({ initialSession, colorMode, onColorMode, onSession, onNext }: {
   const onAttempt = (path: readonly Position[]) => {
     const match = session.puzzle.entries.find((entry) => !session.solvedWords.includes(entry.word) && pathsMatch(path, entry.path));
     const currentElapsed = getElapsed();
-    dispatch({ type: "attempt", elapsedMs: currentElapsed, ...(match === undefined ? {} : { word: match.word }) });
+    dispatch({ type: "attempt", elapsedMs: currentElapsed, color: attemptColor, ...(match === undefined ? {} : { word: match.word }) });
     return match?.word;
   };
 
@@ -259,10 +266,10 @@ function Game({ initialSession, colorMode, onColorMode, onSession, onNext }: {
       <header className="topbar"><div><p className="eyebrow">Word search</p><h1>{theme.title}</h1></div><div className="topbar-actions"><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
       <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
         const solved = session.solvedWords.includes(word);
-        const style = solved ? { "--selection-color": colors.get(word) } as CSSProperties : undefined;
-        return <span key={word} className={`word-chip${solved ? " is-solved" : ""}`} style={style}>{word}<span className="word-check" aria-hidden="true">✓</span></span>;
+        const style = solved ? { "--selection-color": session.solvedColors[word] ?? colors.get(word) } as CSSProperties : undefined;
+        return <span key={word} className={`word-chip${solved ? " is-solved" : ""}`} style={style}>{word}</span>;
       })}</section>
-      <section className="board-stage"><PuzzleGrid session={session} colors={colors} onAttempt={onAttempt} /></section>
+      <section className="board-stage"><PuzzleGrid session={session} colors={colors} onAttempt={onAttempt} attemptColor={attemptColor} /></section>
       <footer className="game-footer"><span>{session.solvedWords.length} / {session.targetWords.length} found</span><span>{session.attempts} attempts</span></footer>
       {historyOpen && <HistoryDialog records={history} onClose={() => setHistoryOpen(false)} />}
       {session.status === "completed" && <WinDialog session={session} onNext={() => onNext(session)} />}
@@ -278,11 +285,12 @@ export default function App() {
 
   useEffect(() => {
     void Promise.all([loadActiveGame(), loadColorMode()]).then(([active, mode]) => {
-      setColorMode(mode);
-      try { setSession(active ?? createSession(THEMES[0]!, calculatePuzzleProfile(window.innerWidth, window.innerHeight))); }
+      const resolvedMode = mode === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode;
+      setColorMode(resolvedMode);
+      try { setSession(active ?? createSession(THEMES[0]!, calculatePuzzleProfile(window.screen.width, window.screen.height))); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     }).catch(() => {
-      try { setSession(createSession(THEMES[0]!, calculatePuzzleProfile(window.innerWidth, window.innerHeight))); }
+      try { setSession(createSession(THEMES[0]!, calculatePuzzleProfile(window.screen.width, window.screen.height))); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     });
   }, []);
@@ -298,7 +306,7 @@ export default function App() {
     const currentIndex = THEMES.findIndex((theme) => theme.id === current.themeId);
     const nextTheme = THEMES[(currentIndex + 1) % THEMES.length]!;
     try {
-      const next = createSession(nextTheme, calculatePuzzleProfile(window.innerWidth, window.innerHeight));
+      const next = createSession(nextTheme, calculatePuzzleProfile(window.screen.width, window.screen.height));
       setSession(next); void clearActiveGame().then(() => saveActiveGame(next));
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create the next puzzle."); }
   }, []);

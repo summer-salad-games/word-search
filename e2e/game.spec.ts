@@ -34,6 +34,11 @@ test("plays a complete puzzle and persists it to history", async ({ page }) => {
     for (const box of boxes.slice(1)) await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2, { steps: 2 });
     await page.mouse.up();
     await expect(chips.nth(wordIndex)).toHaveClass(/is-solved/);
+    if (wordIndex === 0) {
+      await page.mouse.click(first!.x + first!.width / 2, first!.y + first!.height / 2);
+      await expect(page.locator(".puzzle-cell.is-active")).toHaveCount(0);
+      await expect(page.locator(".game-footer")).toContainText("1 attempts");
+    }
   }
   await expect(page.getByRole("dialog", { name: "Nicely found." })).toBeVisible();
   await page.getByRole("button", { name: /Next puzzle/ }).click();
@@ -50,9 +55,21 @@ test("rolls an incorrect selection back cell by cell", async ({ page }) => {
   await page.mouse.move(first!.x + first!.width / 2, first!.y + first!.height / 2);
   await page.mouse.down();
   await page.mouse.move(second!.x + second!.width / 2, second!.y + second!.height / 2, { steps: 3 });
+  await expect(page.locator('.puzzle-cell.is-active').first()).toHaveCSS("background-color", "rgb(22, 138, 173)");
   await page.mouse.up();
   await expect(page.locator(".puzzle-grid")).toHaveClass(/is-locked/);
   await expect(page.locator(".puzzle-cell.is-active")).toHaveCount(0);
   await expect(page.locator(".puzzle-grid")).not.toHaveClass(/is-locked/);
   await expect(page.locator(".game-footer")).toContainText("1 attempts");
+});
+
+test("fits the page and toggles from system dark mode on the first click", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+  await page.locator(".puzzle-grid").waitFor();
+  expect(await page.evaluate(() => ({ width: document.documentElement.scrollWidth - document.documentElement.clientWidth, height: document.documentElement.scrollHeight - document.documentElement.clientHeight }))).toEqual({ width: 0, height: 0 });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "Toggle color mode" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.locator(".puzzle-grid")).toHaveCSS("cursor", "default");
 });

@@ -7,8 +7,9 @@ describe("application model", () => {
     const phone = calculatePuzzleProfile(390, 844);
     const desktop = calculatePuzzleProfile(1440, 1000);
     expect(phone.columns).toBeLessThan(desktop.columns);
-    expect(phone.rows).toBeLessThanOrEqual(desktop.rows);
     expect(phone.targetWordCount).toBeLessThan(desktop.targetWordCount);
+    expect(phone.rows).toBeGreaterThan(phone.columns);
+    expect(desktop.columns).toBeGreaterThan(desktop.rows);
   });
 
   it("only returns a puzzle after every listed target was placed", () => {

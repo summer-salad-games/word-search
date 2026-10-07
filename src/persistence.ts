@@ -39,7 +39,7 @@ const puzzleSchema = z.object({
 });
 const sessionSchema = z.object({
   id: z.string(), themeId: z.string(), seed: z.string(), puzzle: puzzleSchema,
-  targetWords: z.array(z.string()), solvedWords: z.array(z.string()), attempts: z.number().int().nonnegative(),
+  targetWords: z.array(z.string()), solvedWords: z.array(z.string()), solvedColors: z.record(z.string(), z.string()), attempts: z.number().int().nonnegative(),
   elapsedMs: z.number().nonnegative(), status: z.enum(["playing", "completed"]), profile: profileSchema,
   completedAt: z.string().optional(),
 });

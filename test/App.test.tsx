@@ -9,11 +9,21 @@ describe("App", () => {
     render(<App />);
     expect(await screen.findByRole("heading", { name: "Nature" })).toBeInTheDocument();
     const grid = await screen.findByRole("grid");
-    expect(grid.querySelectorAll("[role=gridcell]").length).toBeGreaterThan(100);
+    expect(grid.querySelectorAll("[role=gridcell]").length).toBeGreaterThan(70);
     expect(screen.getAllByText(/^[a-z]+$/i).length).toBeGreaterThan(4);
     await user.click(screen.getByRole("button", { name: "Open history" }));
     expect(await screen.findByRole("dialog", { name: "History" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Close history" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "History" })).not.toBeInTheDocument());
+  });
+
+  it("changes away from a system-dark preference on the first mode click", async () => {
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }) });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Nature" });
+    await waitFor(() => expect(document.documentElement.dataset.theme).toBe("dark"));
+    await user.click(screen.getByRole("button", { name: "Toggle color mode" }));
+    expect(document.documentElement.dataset.theme).toBe("light");
   });
 });
