@@ -311,12 +311,14 @@ function Game({ initialSession, colorMode, onColorMode, onSession, onNext, onRes
   return (
     <main className="app-shell">
       <header className="topbar"><div><p className="eyebrow">Word search</p><h1>{theme.title}</h1></div><div className="topbar-actions"><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
-      <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
-        const solved = session.solvedWords.includes(word);
-        const style = solved ? { "--selection-color": session.solvedColors[word] ?? colors.get(word) } as CSSProperties : undefined;
-        return <span key={word} className={`word-chip${solved ? " is-solved" : ""}`} style={style}>{word}</span>;
-      })}</section>
-      <section className="board-stage"><PuzzleGrid session={session} colors={colors} onAttempt={onAttempt} attemptColor={attemptColor} debugWords={debugWords} /></section>
+      <div className="puzzle-content">
+        <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
+          const solved = session.solvedWords.includes(word);
+          const style = solved ? { "--selection-color": session.solvedColors[word] ?? colors.get(word) } as CSSProperties : undefined;
+          return <span key={word} className={`word-chip${solved ? " is-solved" : ""}`} style={style}>{word}</span>;
+        })}</section>
+        <section className="board-stage"><PuzzleGrid session={session} colors={colors} onAttempt={onAttempt} attemptColor={attemptColor} debugWords={debugWords} /></section>
+      </div>
       <footer className="game-footer"><span>{session.solvedWords.length} / {session.targetWords.length} found</span><span>{session.attempts} attempts</span></footer>
       {historyOpen && <HistoryDialog records={history} onClose={() => setHistoryOpen(false)} />}
       {resetOpen && <ResetDialog onBoard={() => onReset(session)} onEverything={onResetEverything} onClose={() => setResetOpen(false)} />}
