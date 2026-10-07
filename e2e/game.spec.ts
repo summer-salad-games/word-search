@@ -1,10 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("plays a complete puzzle and persists it to history", async ({ page }) => {
-  await page.goto("/");
-  const heading = page.getByRole("heading", { level: 1 });
-  await expect(heading).toBeVisible();
-  const themeTitle = (await heading.textContent())!;
+async function solveCurrentPuzzle(page: import("@playwright/test").Page) {
   const chips = page.locator(".word-chip");
   const words = await chips.allTextContents();
   const cells = await page.locator("[data-cell]").evaluateAll((elements) => elements.map((element) => ({
@@ -42,11 +38,68 @@ test("plays a complete puzzle and persists it to history", async ({ page }) => {
       await expect(page.locator(".game-footer")).toContainText("1 attempts");
     }
   }
+}
+
+test("plays a complete puzzle and persists it to history", async ({ page }) => {
+  await page.goto("/");
+  const heading = page.getByRole("heading", { level: 1 });
+  await expect(heading).toBeVisible();
+  const themeTitle = (await heading.textContent())!;
+  await solveCurrentPuzzle(page);
   await expect(page.getByRole("dialog", { name: "Nicely found." })).toBeVisible();
   await page.getByRole("button", { name: /Next puzzle/ }).click();
   await expect(heading).not.toHaveText(themeTitle);
   await page.getByRole("button", { name: "Open history" }).click();
   await expect(page.getByRole("dialog", { name: "History" })).toContainText(themeTitle);
+});
+
+test("congratulates the player after the final unique grid and resets the whole playthrough", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".puzzle-grid").waitFor();
+  const currentThemeId = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    const active = await new Promise<{ session: { themeId: string } }>((resolve, reject) => {
+      const request = db.transaction("state").objectStore("state").get("active-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return active.session.themeId;
+  });
+  await page.evaluate(async ({ currentThemeId }) => {
+    const { THEMES } = await import("/src/themes.ts");
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction("state", "readwrite");
+      transaction.objectStore("state").put(THEMES.map(({ id }) => id).filter((id) => id !== currentThemeId), "completed-themes");
+      transaction.oncomplete = () => resolve(); transaction.onerror = () => reject(transaction.error);
+    });
+    db.close();
+  }, { currentThemeId });
+  await page.reload();
+  await page.locator(".puzzle-grid").waitFor();
+  await solveCurrentPuzzle(page);
+
+  await expect(page.getByRole("dialog", { name: "You found them all!" })).toContainText("all 500 word-search grids");
+  await page.getByRole("button", { name: /Reset and start over/ }).click();
+  await expect(page.getByRole("dialog", { name: "You found them all!" })).not.toBeVisible();
+  await expect(page.locator(".game-footer")).toContainText("0 attempts");
+  expect(await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    const transaction = db.transaction(["state", "history"], "readonly");
+    const completed = await new Promise<unknown>((resolve, reject) => {
+      const request = transaction.objectStore("state").get("completed-themes"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    const historyCount = await new Promise<number>((resolve, reject) => {
+      const request = transaction.objectStore("history").count(); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return { completed, historyCount };
+  })).toEqual({ completed: undefined, historyCount: 0 });
 });
 
 test("rolls an incorrect selection back cell by cell", async ({ page }) => {

@@ -136,7 +136,7 @@ dd { margin: 0; font-weight: 720; font-variant-numeric: tabular-nums; }
   .icon-button { width: 38px; height: 38px; }
   .timer { min-width: 3.8rem; font-size: .86rem; }
   .word-chip { padding: 5px 8px; }
-  .puzzle-content { align-self: center; grid-template-rows: auto auto; gap: 12px; width: 100%; }
+  .puzzle-content { align-self: center; grid-template-rows: auto auto; gap: 6px; width: 100%; }
   .puzzle-grid { width: 100%; height: auto; max-width: calc(100vw - 24px); }
 }
 

@@ -19,11 +19,18 @@ describe("theme catalog", () => {
   });
 
   it("selects standard themes normally, rare themes at the easter-egg boundary, and excludes repeats", () => {
-    const standard = selectRandomTheme(undefined, (() => { const values = [0.5, 0]; return () => values.shift()!; })());
-    const rare = selectRandomTheme(undefined, (() => { const values = [0.019, 0]; return () => values.shift()!; })());
+    const standard = selectRandomTheme(new Set(), (() => { const values = [0.5, 0]; return () => values.shift()!; })())!;
+    const rare = selectRandomTheme(new Set(), (() => { const values = [0.019, 0]; return () => values.shift()!; })())!;
     expect(standard.rare).not.toBe(true);
     expect(rare.rare).toBe(true);
-    expect(selectRandomTheme(standard.id, () => 0.5).id).not.toBe(standard.id);
+    expect(selectRandomTheme(new Set([standard.id]), () => 0.5)?.id).not.toBe(standard.id);
+  });
+
+  it("never repeats completed themes and reports when the collection is exhausted", () => {
+    const last = THEMES.at(-1)!;
+    const allButLast = new Set(THEMES.slice(0, -1).map(({ id }) => id));
+    expect(selectRandomTheme(allButLast, () => 0.5)).toBe(last);
+    expect(selectRandomTheme(new Set(THEMES.map(({ id }) => id)), () => 0.5)).toBeUndefined();
   });
 
   it("generates every catalog theme on a mobile board", () => {

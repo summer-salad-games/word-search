@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { calculatePuzzleProfile, createSession, extendSelection, formatDuration, gameReducer, pathsMatch, positionKey, resetSession, GENERATOR_VERSION, type GameSession } from "./app-model.js";
-import { clearActiveGame, loadActiveGame, loadColorMode, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveHistory, type ColorMode, type HistoryRecord } from "./persistence.js";
-import { getTheme, selectRandomTheme } from "./themes.js";
+import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, type ColorMode, type HistoryRecord } from "./persistence.js";
+import { getTheme, selectRandomTheme, THEMES } from "./themes.js";
 import type { Position, PuzzleCell } from "./types.js";
 import "./styles.css";
 
@@ -261,6 +261,18 @@ function WinDialog({ session, onNext }: { readonly session: GameSession; readonl
   );
 }
 
+function CollectionCompleteDialog({ onReset }: { readonly onReset: () => void }) {
+  return (
+    <div className="overlay celebration" role="presentation">
+      <section className="dialog win-dialog" role="dialog" aria-modal="true" aria-labelledby="collection-title">
+        <div className="win-mark">★</div><p className="eyebrow">Every puzzle complete</p><h2 id="collection-title">You found them all!</h2>
+        <p className="dialog-copy">Congratulations — you completed all {THEMES.length} word-search grids. Reset to clear your history and begin a brand-new journey.</p>
+        <button className="primary-button" onClick={onReset}>Reset and start over <span aria-hidden="true">↻</span></button>
+      </section>
+    </div>
+  );
+}
+
 function ResetDialog({ onBoard, onEverything, onClose }: {
   readonly onBoard: () => void; readonly onEverything: () => void; readonly onClose: () => void;
 }) {
@@ -279,9 +291,11 @@ function ResetDialog({ onBoard, onEverything, onClose }: {
   );
 }
 
-function Game({ initialSession, colorMode, onColorMode, onSession, onNext, onReset, onResetEverything }: {
+function Game({ initialSession, colorMode, isFinalPuzzle, onColorMode, onSession, onComplete, onNext, onReset, onResetEverything }: {
   readonly initialSession: GameSession; readonly colorMode: ColorMode; readonly onColorMode: (mode: ColorMode) => void;
+  readonly isFinalPuzzle: boolean;
   readonly onSession: (session: GameSession) => void; readonly onNext: (session: GameSession) => void;
+  readonly onComplete: (session: GameSession) => void;
   readonly onReset: (session: GameSession) => void;
   readonly onResetEverything: () => void;
 }) {
@@ -309,8 +323,8 @@ function Game({ initialSession, colorMode, onColorMode, onSession, onNext, onRes
   }, []);
   useEffect(() => {
     if (session.status !== "completed" || session.completedAt === undefined) return;
-    void saveHistory({ id: session.id, themeId: session.themeId, themeTitle: theme.title, seed: session.seed, elapsedMs: session.elapsedMs, wordCount: session.targetWords.length, attempts: session.attempts, completedAt: session.completedAt, profile: session.profile, generatorVersion: GENERATOR_VERSION });
-  }, [session, theme.title]);
+    onComplete(session);
+  }, [onComplete, session]);
   useEffect(() => {
     const api: WordSearchDebugApi = {
       highlightWords: () => setDebugWords(true),
@@ -349,7 +363,9 @@ function Game({ initialSession, colorMode, onColorMode, onSession, onNext, onRes
       <footer className="game-footer"><span>{session.solvedWords.length} / {session.targetWords.length} found</span><span>{session.attempts} attempts</span></footer>
       {historyOpen && <HistoryDialog records={history} onClose={() => setHistoryOpen(false)} />}
       {resetOpen && <ResetDialog onBoard={() => onReset(session)} onEverything={onResetEverything} onClose={() => setResetOpen(false)} />}
-      {session.status === "completed" && <WinDialog session={session} onNext={() => onNext(session)} />}
+      {session.status === "completed" && (isFinalPuzzle
+        ? <CollectionCompleteDialog onReset={onResetEverything} />
+        : <WinDialog session={session} onNext={() => onNext(session)} />)}
     </main>
   );
 }
@@ -359,17 +375,24 @@ export default function App() {
   const mobileLandscape = useMobileLandscape();
   const [session, setSession] = useState<GameSession>();
   const [colorMode, setColorMode] = useState<ColorMode>("system");
+  const [completedThemeIds, setCompletedThemeIds] = useState<readonly string[]>([]);
   const [error, setError] = useState<string>();
 
   useEffect(() => {
-    void Promise.all([loadActiveGame(), loadColorMode()]).then(([active, mode]) => {
+    void Promise.all([loadActiveGame(), loadColorMode(), loadCompletedThemeIds()]).then(([active, mode, persistedCompleted]) => {
       const resolvedMode = mode === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode;
       const profile = calculatePuzzleProfile(viewport.width, viewport.height);
+      const knownIds = new Set(THEMES.map((theme) => theme.id));
+      const completed = persistedCompleted.filter((id) => knownIds.has(id));
       setColorMode(resolvedMode);
-      try { setSession(active ?? createSession(selectRandomTheme(), profile)); }
+      setCompletedThemeIds(completed);
+      try {
+        const theme = active === undefined ? selectRandomTheme(new Set(completed)) : undefined;
+        setSession(active ?? createSession(theme ?? selectRandomTheme()!, profile));
+      }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     }).catch(() => {
-      try { setSession(createSession(selectRandomTheme(), calculatePuzzleProfile(viewport.width, viewport.height))); }
+      try { setSession(createSession(selectRandomTheme()!, calculatePuzzleProfile(viewport.width, viewport.height))); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     });
   }, []);
@@ -389,21 +412,33 @@ export default function App() {
   const resetEverything = useCallback(() => {
     void resetApplicationState().then(() => {
       const mode: ColorMode = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      const fresh = createSession(selectRandomTheme(), calculatePuzzleProfile(viewport.width, viewport.height));
+      const fresh = createSession(selectRandomTheme()!, calculatePuzzleProfile(viewport.width, viewport.height));
       setColorMode(mode);
+      setCompletedThemeIds([]);
       setSession(fresh);
       void saveActiveGame(fresh);
     }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not reset the application."));
   }, [viewport.height, viewport.width]);
+  const completePuzzle = useCallback((completed: GameSession) => {
+    if (completed.completedAt === undefined) return;
+    setCompletedThemeIds((current) => current.includes(completed.themeId) ? current : [...current, completed.themeId]);
+    const theme = getTheme(completed.themeId);
+    void saveCompletion({ id: completed.id, themeId: completed.themeId, themeTitle: theme.title, seed: completed.seed, elapsedMs: completed.elapsedMs, wordCount: completed.targetWords.length, attempts: completed.attempts, completedAt: completed.completedAt, profile: completed.profile, generatorVersion: GENERATOR_VERSION })
+      .then(setCompletedThemeIds)
+      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not save puzzle completion."));
+  }, []);
   const nextPuzzle = useCallback((current: GameSession) => {
-    const nextTheme = selectRandomTheme(current.themeId);
+    const completed = new Set([...completedThemeIds, current.themeId]);
+    const nextTheme = selectRandomTheme(completed);
     try {
+      if (nextTheme === undefined) throw new Error("All puzzles have already been completed.");
       const next = createSession(nextTheme, calculatePuzzleProfile(viewport.width, viewport.height));
       setSession(next); void clearActiveGame().then(() => saveActiveGame(next));
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create the next puzzle."); }
-  }, [viewport.height, viewport.width]);
+  }, [completedThemeIds, viewport.height, viewport.width]);
 
   if (error !== undefined) return <main className="loading-screen"><p className="eyebrow">Something went wrong</p><h1>{error}</h1><button className="primary-button" onClick={() => location.reload()}>Try again</button></main>;
   if (session === undefined) return <main className="loading-screen"><div className="loader"/><p>Preparing your puzzle…</p></main>;
-  return <><Game key={session.id} initialSession={session} colorMode={colorMode} onColorMode={updateMode} onSession={updateSession} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything}/>{mobileLandscape && <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for portrait play.</span></div>}</>;
+  const completedBeforeCurrent = completedThemeIds.filter((id) => id !== session.themeId).length;
+  return <><Game key={session.id} initialSession={session} colorMode={colorMode} isFinalPuzzle={completedBeforeCurrent === THEMES.length - 1} onColorMode={updateMode} onSession={updateSession} onComplete={completePuzzle} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything}/>{mobileLandscape && <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for portrait play.</span></div>}</>;
 }

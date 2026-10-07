@@ -18,7 +18,7 @@ export interface HistoryRecord {
 }
 
 interface WordSearchDatabase extends DBSchema {
-  state: { key: "active-game" | "color-mode"; value: unknown };
+  state: { key: "active-game" | "color-mode" | "completed-themes"; value: unknown };
   history: { key: string; value: HistoryRecord; indexes: { "by-completed": string } };
 }
 
@@ -44,6 +44,7 @@ const sessionSchema = z.object({
   completedAt: z.string().optional(),
 });
 const persistedSessionSchema = z.object({ generatorVersion: z.number().int(), session: sessionSchema });
+const completedThemesSchema = z.array(z.string()).transform((ids) => [...new Set(ids)]);
 const historySchema = z.object({
   id: z.string(), themeId: z.string(), themeTitle: z.string(), seed: z.string(), elapsedMs: z.number().nonnegative(),
   wordCount: z.number().int().nonnegative(), attempts: z.number().int().nonnegative(), completedAt: z.string(),
@@ -89,9 +90,25 @@ export async function saveColorMode(mode: ColorMode): Promise<void> {
   await (await database).put("state", mode, "color-mode");
 }
 
-export async function saveHistory(record: HistoryRecord): Promise<void> {
+export async function saveCompletion(record: HistoryRecord): Promise<readonly string[]> {
   const parsed = historySchema.parse(record);
-  await (await database).put("history", parsed);
+  const db = await database;
+  const transaction = db.transaction(["state", "history"], "readwrite");
+  const state = transaction.objectStore("state");
+  const existing = completedThemesSchema.safeParse(await state.get("completed-themes"));
+  const completed = new Set(existing.success ? existing.data : []);
+  completed.add(parsed.themeId);
+  await Promise.all([
+    state.put([...completed], "completed-themes"),
+    transaction.objectStore("history").put(parsed),
+    transaction.done,
+  ]);
+  return [...completed];
+}
+
+export async function loadCompletedThemeIds(): Promise<readonly string[]> {
+  const parsed = completedThemesSchema.safeParse(await (await database).get("state", "completed-themes"));
+  return parsed.success ? parsed.data : [];
 }
 
 export async function loadHistory(): Promise<HistoryRecord[]> {

@@ -66,10 +66,14 @@ const RARE_THEMES: readonly PuzzleTheme[] = Object.freeze([
 
 export const THEMES: readonly PuzzleTheme[] = Object.freeze([...STANDARD_THEMES, ...RARE_THEMES]);
 
-export function selectRandomTheme(excludeId?: string, random: () => number = Math.random): PuzzleTheme {
-  const source = random() < 0.02 ? RARE_THEMES : STANDARD_THEMES;
-  const candidates = source.filter((theme) => theme.id !== excludeId);
-  const pool = candidates.length > 0 ? candidates : source;
+export function selectRandomTheme(completedIds: ReadonlySet<string> = new Set(), random: () => number = Math.random): PuzzleTheme | undefined {
+  const standard = STANDARD_THEMES.filter((theme) => !completedIds.has(theme.id));
+  const rare = RARE_THEMES.filter((theme) => !completedIds.has(theme.id));
+  if (standard.length === 0 && rare.length === 0) return undefined;
+  const preferRare = random() < 0.02;
+  const pool = preferRare
+    ? (rare.length > 0 ? rare : standard)
+    : (standard.length > 0 ? standard : rare);
   const index = Math.min(pool.length - 1, Math.floor(random() * pool.length));
   return pool[Math.max(0, index)]!;
 }
