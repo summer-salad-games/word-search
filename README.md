@@ -1,18 +1,23 @@
-# Word Search Generator
+# Word Search
 
-A framework-independent, browser-compatible TypeScript library for generating word-search grids. It has no runtime dependencies and does not use DOM, canvas, or game-engine APIs.
+A responsive, client-side word search game built with React and TypeScript. It runs as an ordinary static website, supports mouse and touch input, stores progress and unlimited history in IndexedDB, and has no backend.
 
-## Install and build
+## Development
 
 ```sh
 npm install
+npm run dev
 npm run build
 ```
 
-## Usage
+The game calculates a grid and target count from the viewport before each puzzle. Phone puzzles use fewer words and smaller grids than desktop puzzles. Once play begins, resizing scales the existing board without replacing it.
+
+Words can turn between letters using cardinal moves only. Paths cannot revisit, overlap, or intersect themselves. Reversed words are supported. Every target is guaranteed to be placed, and generation rejects boards with alternate valid solutions.
+
+## Generator usage
 
 ```ts
-import { generatePuzzle } from "@summer-salad-games/word-search";
+import { generatePuzzle } from "./src/index.js";
 
 const puzzle = generatePuzzle({
   theme: "Nature",
@@ -52,6 +57,8 @@ Every word placement is checked against the complete grid and rejected if it cre
 
 ## Commands
 
-- `npm test` runs behavioral tests.
+- `npm run dev` starts the Vite development server.
+- `npm test` runs generator, application-model, and React component tests.
+- `npm run test:e2e` runs real Chromium pointer, completion, history, and rollback tests.
 - `npm run check` performs strict type checking.
-- `npm run build` emits browser-compatible ESM and declarations into `dist/`.
+- `npm run build` creates the production website in `dist/`.

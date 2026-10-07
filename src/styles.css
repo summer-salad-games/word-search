@@ -1,0 +1,132 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  --background: #f5f5f3;
+  --surface: #ffffff;
+  --surface-soft: #ececea;
+  --text: #171717;
+  --muted: #717171;
+  --line: #d8d8d4;
+  --cell: #fbfbfa;
+  --cell-border: #e4e4e0;
+  --shadow: 0 24px 70px rgb(24 24 20 / 0.12);
+  background: var(--background);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #111211;
+  --surface: #1b1c1b;
+  --surface-soft: #252625;
+  --text: #f3f3ef;
+  --muted: #a2a39f;
+  --line: #343634;
+  --cell: #1e201f;
+  --cell-border: #303230;
+  --shadow: 0 24px 70px rgb(0 0 0 / 0.35);
+}
+
+* { box-sizing: border-box; }
+html, body, #root { width: 100%; min-width: 280px; min-height: 100%; margin: 0; }
+body { min-height: 100dvh; overflow-x: hidden; background: var(--background); transition: background-color 180ms ease, color 180ms ease; }
+button { font: inherit; }
+
+.app-shell {
+  width: min(100%, 1120px);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: max(20px, env(safe-area-inset-top)) clamp(16px, 4vw, 48px) max(14px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: clamp(12px, 2vh, 22px);
+}
+
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.topbar h1 { margin: 2px 0 0; font-size: clamp(1.6rem, 4vw, 2.7rem); letter-spacing: -0.045em; line-height: 1; }
+.eyebrow { margin: 0; color: var(--muted); font-size: .7rem; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+.timer { min-width: 4.5rem; font-variant-numeric: tabular-nums; font-weight: 720; text-align: center; }
+.icon-button { width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 50%; display: grid; place-items: center; background: var(--surface); color: var(--text); cursor: pointer; transition: transform 130ms ease, background 130ms ease; }
+.icon-button:hover { background: var(--surface-soft); transform: translateY(-1px); }
+.icon-button:active { transform: scale(.95); }
+.icon-button svg { width: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+.word-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; min-height: 34px; }
+.word-chip { --selection-color: var(--text); position: relative; display: inline-flex; align-items: center; gap: 5px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: clamp(.72rem, 1.8vw, .88rem); font-weight: 680; text-transform: uppercase; letter-spacing: .055em; transition: color 220ms ease, border-color 220ms ease, background-color 220ms ease, transform 220ms cubic-bezier(.2,.8,.2,1); }
+.word-chip.is-solved { color: #fff; background: var(--selection-color); border-color: var(--selection-color); animation: found-pulse 480ms cubic-bezier(.2,.8,.2,1); }
+.word-check { width: 0; opacity: 0; overflow: hidden; transition: width 180ms ease, opacity 180ms ease; }
+.word-chip.is-solved .word-check { width: 12px; opacity: 1; }
+
+.board-stage { min-height: 0; display: grid; place-items: center; overflow: hidden; }
+.puzzle-grid {
+  --gap: clamp(2px, .45vmin, 5px);
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--grid-rows), minmax(0, 1fr));
+  gap: var(--gap);
+  width: min(calc(100vw - 32px), calc(var(--grid-columns) * var(--preferred-cell)));
+  max-height: 100%;
+  aspect-ratio: var(--grid-columns) / var(--grid-rows);
+  user-select: none;
+  touch-action: none;
+  cursor: crosshair;
+}
+.puzzle-grid.is-locked { cursor: wait; }
+.puzzle-cell { --selection-color: #797979; min-width: 0; min-height: 0; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid var(--cell-border); border-radius: clamp(4px, .8vmin, 8px); background: var(--cell); color: var(--text); font-size: clamp(.62rem, 2.5vmin, 1.18rem); font-weight: 760; line-height: 1; text-transform: uppercase; transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, opacity 180ms ease; }
+.puzzle-cell.is-border { opacity: .66; }
+.puzzle-cell span { pointer-events: none; transform: scale(1); }
+.puzzle-cell.is-active { background: var(--surface-soft); border-color: var(--text); }
+.puzzle-cell.is-active span { animation: select-pulse 210ms cubic-bezier(.2,.8,.2,1); }
+.puzzle-cell.is-solved { opacity: 1; color: #fff; background: var(--selection-color); border-color: var(--selection-color); }
+.puzzle-cell.is-solved span { animation: found-pulse 420ms cubic-bezier(.2,.8,.2,1); }
+.puzzle-cell.is-rejecting span { animation: reject-pulse 110ms ease-in-out; }
+
+.game-footer { display: flex; justify-content: space-between; color: var(--muted); font-size: .76rem; font-weight: 650; letter-spacing: .04em; }
+.overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgb(10 10 10 / .48); backdrop-filter: blur(8px); animation: fade-in 180ms ease; }
+.dialog { width: min(100%, 520px); max-height: min(82dvh, 720px); padding: clamp(22px, 5vw, 36px); overflow: auto; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); box-shadow: var(--shadow); animation: dialog-in 260ms cubic-bezier(.2,.8,.2,1); }
+.dialog header { display: flex; align-items: start; justify-content: space-between; }
+.dialog h2 { margin: 4px 0 0; font-size: 2rem; letter-spacing: -.04em; }
+.history-list { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 10px; }
+.history-list li { padding: 15px; border: 1px solid var(--line); border-radius: 14px; }
+.history-list li > div { display: flex; justify-content: space-between; gap: 12px; }
+.history-list span { color: var(--muted); font-size: .8rem; }
+.history-list dl, .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 15px 0 0; }
+.history-list dl div, .stats div { display: grid; gap: 3px; }
+dt { color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; }
+dd { margin: 0; font-weight: 720; font-variant-numeric: tabular-nums; }
+.empty-state { margin: 42px 0; color: var(--muted); text-align: center; }
+.win-dialog { text-align: center; }
+.win-mark { width: 58px; height: 58px; margin: 0 auto 20px; display: grid; place-items: center; border-radius: 50%; background: var(--text); color: var(--background); font-size: 1.5rem; animation: found-pulse 580ms cubic-bezier(.2,.8,.2,1); }
+.win-dialog h2 { margin: 6px 0; font-size: clamp(2rem, 8vw, 3.3rem); }
+.win-theme { margin: 0; color: var(--muted); }
+.stats { margin: 28px 0 !important; padding: 18px 0; border-block: 1px solid var(--line); }
+.stats dd { font-size: 1.2rem; }
+.primary-button { min-height: 48px; padding: 0 22px; border: 0; border-radius: 999px; background: var(--text); color: var(--background); font-weight: 750; cursor: pointer; transition: transform 130ms ease, opacity 130ms ease; }
+.primary-button:hover { transform: translateY(-1px); }
+.primary-button:active { transform: scale(.97); }
+.loading-screen, .orientation-guard { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 14px; padding: 24px; text-align: center; }
+.loader { width: 30px; height: 30px; border: 2px solid var(--line); border-top-color: var(--text); border-radius: 50%; animation: spin .8s linear infinite; }
+.orientation-guard { position: fixed; inset: 0; z-index: 50; background: var(--background); }
+.orientation-guard span { color: var(--muted); }
+.phone-icon { font-size: 2.5rem; }
+
+@keyframes select-pulse { 50% { transform: scale(1.2); } }
+@keyframes found-pulse { 45% { transform: scale(1.08); } }
+@keyframes reject-pulse { 50% { transform: scale(.68); opacity: .4; } }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(12px) scale(.97); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 479px) {
+  .app-shell { padding-inline: 12px; gap: 10px; }
+  .icon-button { width: 38px; height: 38px; }
+  .timer { min-width: 3.8rem; font-size: .86rem; }
+  .word-chip { padding: 5px 8px; }
+  .puzzle-grid { width: calc(100vw - 24px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}

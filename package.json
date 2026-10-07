@@ -1,28 +1,30 @@
 {
   "name": "@summer-salad-games/word-search",
   "version": "0.1.0",
-  "description": "Framework-independent word-search puzzle generator",
+  "description": "Responsive client-side word search game",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist"
-  ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "preview": "vite preview",
     "prepack": "npm run check && npm test && npm run build"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.1.4",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^27.4.0",
     "typescript": "^5.9.3",
+    "vite": "^7.3.7",
     "vitest": "^3.2.4"
   },
   "engines": {
@@ -33,5 +35,11 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/summer-salad-games/word-search.git"
+  },
+  "dependencies": {
+    "idb": "^8.0.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5"
   }
 }
