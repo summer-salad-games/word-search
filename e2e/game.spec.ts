@@ -83,7 +83,7 @@ test("fits the page and toggles from system dark mode on the first click", async
   expect(cell!.height).toBeGreaterThanOrEqual(44);
 });
 
-test("keeps a generated board unchanged across resizing and mobile orientation", async ({ browser }) => {
+test("regenerates across device classes but not resizing or mobile orientation", async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, screen: { width: 1440, height: 1000 } });
   const page = await context.newPage();
   await page.goto("/");
@@ -91,18 +91,19 @@ test("keeps a generated board unchanged across resizing and mobile orientation",
   const letters = await page.locator(".puzzle-cell").allTextContents();
   await page.waitForTimeout(100);
   const client = await context.newCDPSession(page);
+  await client.send("Emulation.setDeviceMetricsOverride", { width: 1000, height: 800, screenWidth: 1440, screenHeight: 1000, deviceScaleFactor: 1, mobile: false });
+  await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^18 by 12/);
+  expect(await page.locator(".puzzle-cell").allTextContents()).toEqual(letters);
+  await client.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 1 });
   await client.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, screenWidth: 390, screenHeight: 844, deviceScaleFactor: 3, mobile: true });
-  await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^18 by 12/);
-  expect(await page.locator(".puzzle-cell").allTextContents()).toEqual(letters);
-  await page.reload();
-  await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^18 by 12/);
-  expect(await page.locator(".puzzle-cell").allTextContents()).toEqual(letters);
+  await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^7 by 12/);
+  const mobileLetters = await page.locator(".puzzle-cell").allTextContents();
   await client.send("Emulation.setDeviceMetricsOverride", { width: 844, height: 390, screenWidth: 844, screenHeight: 390, deviceScaleFactor: 3, mobile: true });
   await expect(page.getByText("Turn your device")).toBeVisible();
-  await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^18 by 12/);
+  await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^7 by 12/);
   await client.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, screenWidth: 390, screenHeight: 844, deviceScaleFactor: 3, mobile: true });
   await expect(page.getByText("Turn your device")).not.toBeVisible();
-  expect(await page.locator(".puzzle-cell").allTextContents()).toEqual(letters);
+  expect(await page.locator(".puzzle-cell").allTextContents()).toEqual(mobileLetters);
   await context.close();
 });
 

@@ -38,7 +38,7 @@ const puzzleSchema = z.object({
   borderSize: z.number().int().nonnegative(), entries: z.array(entrySchema), unplacedWords: z.array(z.string()),
 });
 const sessionSchema = z.object({
-  id: z.string(), themeId: z.string(), seed: z.string(), puzzle: puzzleSchema,
+  id: z.string(), themeId: z.string(), deviceClass: z.enum(["mobile", "desktop"]), seed: z.string(), puzzle: puzzleSchema,
   targetWords: z.array(z.string()), solvedWords: z.array(z.string()), solvedColors: z.record(z.string(), z.string()), attempts: z.number().int().nonnegative(),
   elapsedMs: z.number().nonnegative(), status: z.enum(["playing", "completed"]), profile: profileSchema,
   completedAt: z.string().optional(),

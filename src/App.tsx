@@ -27,10 +27,12 @@ function Icon({ name }: { readonly name: "history" | "reset" | "moon" | "sun" | 
 }
 
 function useViewport() {
-  const read = () => ({
-    width: Math.min(window.screen.width || window.innerWidth, window.innerWidth),
-    height: window.screen.height || window.innerHeight,
-  });
+  const read = () => {
+    const width = Math.min(window.screen.width || window.innerWidth, window.innerWidth);
+    const height = window.screen.height || window.innerHeight;
+    const touch = navigator.maxTouchPoints > 0 || matchMedia("(pointer: coarse)").matches;
+    return { width, height, mobile: touch && Math.min(width, height) < 800 };
+  };
   const [viewport, setViewport] = useState(read);
   useEffect(() => {
     const update = () => setViewport(read());
@@ -39,6 +41,17 @@ function useViewport() {
   }, []);
   return viewport;
 }
+
+function profileForViewport(viewport: { readonly width: number; readonly height: number; readonly mobile: boolean }) {
+  const portrait = viewport.mobile && viewport.width > viewport.height;
+  return calculatePuzzleProfile(portrait ? viewport.height : viewport.width, portrait ? viewport.width : viewport.height);
+}
+
+function sessionIsMobile(session: GameSession): boolean {
+  return session.deviceClass === "mobile";
+}
+
+const deviceClassFor = (mobile: boolean): "mobile" | "desktop" => mobile ? "mobile" : "desktop";
 
 function useGameTimer(session: GameSession, paused: boolean, onElapsed: (value: number) => void) {
   const accumulated = useRef(session.elapsedMs);
@@ -334,15 +347,27 @@ export default function App() {
   useEffect(() => {
     void Promise.all([loadActiveGame(), loadColorMode()]).then(([active, mode]) => {
       const resolvedMode = mode === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode;
-      const profile = calculatePuzzleProfile(viewport.width, viewport.height);
+      const profile = profileForViewport(viewport);
+      const compatible = active !== undefined && sessionIsMobile(active) === viewport.mobile;
       setColorMode(resolvedMode);
-      try { setSession(active ?? createSession(THEMES[0]!, profile)); }
+      try { setSession(compatible ? active : createSession(THEMES[0]!, profile, undefined, deviceClassFor(viewport.mobile))); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     }).catch(() => {
-      try { setSession(createSession(THEMES[0]!, calculatePuzzleProfile(viewport.width, viewport.height))); }
+      try { setSession(createSession(THEMES[0]!, profileForViewport(viewport), undefined, deviceClassFor(viewport.mobile))); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     });
   }, []);
+
+  useEffect(() => {
+    if (session === undefined || sessionIsMobile(session) === viewport.mobile) return;
+    try {
+      const replacement = createSession(getTheme(session.themeId), profileForViewport(viewport), undefined, deviceClassFor(viewport.mobile));
+      setSession(replacement);
+      void clearActiveGame().then(() => saveActiveGame(replacement));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not prepare the puzzle for this device.");
+    }
+  }, [session, viewport.height, viewport.mobile, viewport.width]);
 
   useEffect(() => {
     const dark = colorMode === "dark" || (colorMode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
@@ -359,22 +384,22 @@ export default function App() {
   const resetEverything = useCallback(() => {
     void resetApplicationState().then(() => {
       const mode: ColorMode = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      const fresh = createSession(THEMES[0]!, calculatePuzzleProfile(viewport.width, viewport.height));
+      const fresh = createSession(THEMES[0]!, profileForViewport(viewport), undefined, deviceClassFor(viewport.mobile));
       setColorMode(mode);
       setSession(fresh);
       void saveActiveGame(fresh);
     }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not reset the application."));
-  }, [viewport.height, viewport.width]);
+  }, [viewport.height, viewport.mobile, viewport.width]);
   const nextPuzzle = useCallback((current: GameSession) => {
     const currentIndex = THEMES.findIndex((theme) => theme.id === current.themeId);
     const nextTheme = THEMES[(currentIndex + 1) % THEMES.length]!;
     try {
-      const next = createSession(nextTheme, calculatePuzzleProfile(viewport.width, viewport.height));
+      const next = createSession(nextTheme, profileForViewport(viewport), undefined, deviceClassFor(viewport.mobile));
       setSession(next); void clearActiveGame().then(() => saveActiveGame(next));
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create the next puzzle."); }
-  }, [viewport.height, viewport.width]);
+  }, [viewport.height, viewport.mobile, viewport.width]);
 
-  const mobileLandscape = viewport.width < 900 && viewport.width > viewport.height;
+  const mobileLandscape = viewport.mobile && viewport.width > viewport.height;
   if (error !== undefined) return <main className="loading-screen"><p className="eyebrow">Something went wrong</p><h1>{error}</h1><button className="primary-button" onClick={() => location.reload()}>Try again</button></main>;
   if (session === undefined) return <main className="loading-screen"><div className="loader"/><p>Preparing your puzzle…</p></main>;
   return <><Game key={session.id} initialSession={session} colorMode={colorMode} onColorMode={updateMode} onSession={updateSession} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything}/>{mobileLandscape && <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for portrait play.</span></div>}</>;
