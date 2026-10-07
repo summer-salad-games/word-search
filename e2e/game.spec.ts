@@ -72,4 +72,21 @@ test("fits the page and toggles from system dark mode on the first click", async
   await page.getByRole("button", { name: "Toggle color mode" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.locator(".puzzle-grid")).toHaveCSS("cursor", "default");
+  const cell = await page.locator(".puzzle-cell").first().boundingBox();
+  expect(cell!.width).toBeGreaterThanOrEqual(44);
+  expect(cell!.height).toBeGreaterThanOrEqual(44);
+});
+
+test("replaces a persisted desktop board when Chrome switches to phone emulation", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, screen: { width: 1440, height: 1000 } });
+  const page = await context.newPage();
+  await page.goto("/");
+  await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^18 by 12/);
+  await page.waitForTimeout(100);
+  const client = await context.newCDPSession(page);
+  await client.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, screenWidth: 390, screenHeight: 844, deviceScaleFactor: 3, mobile: true });
+  await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^7 by 12/);
+  const cell = await page.locator(".puzzle-cell").first().boundingBox();
+  expect(cell!.width).toBeGreaterThanOrEqual(44);
+  await context.close();
 });

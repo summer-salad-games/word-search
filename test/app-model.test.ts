@@ -20,6 +20,29 @@ describe("application model", () => {
     expect(new Set(result.puzzle.entries.map((entry) => entry.word))).toEqual(new Set(result.targetWords));
   });
 
+  it("keeps word density and horizontal distribution balanced", () => {
+    for (const [width, height] of [[440, 956], [1440, 1000]] as const) {
+      const profile = calculatePuzzleProfile(width, height);
+      let occupied = 0;
+      let cells = 0;
+      let left = 0;
+      let right = 0;
+      for (let seed = 0; seed < 100; seed += 1) {
+        const { puzzle } = generateCompletePuzzle(THEMES[seed % THEMES.length]!, profile, `distribution-${width}-${seed}`);
+        cells += puzzle.size.width * puzzle.size.height;
+        for (const { path } of puzzle.entries) for (const position of path) {
+          occupied += 1;
+          if (position.x < puzzle.size.width / 2) left += 1;
+          else right += 1;
+        }
+      }
+      expect(occupied / cells).toBeGreaterThanOrEqual(0.35);
+      expect(occupied / cells).toBeLessThanOrEqual(0.5);
+      expect(left / right).toBeGreaterThan(0.9);
+      expect(left / right).toBeLessThan(1.1);
+    }
+  });
+
   it("extends, rejects, and backtracks an orthogonal selection", () => {
     let path = extendSelection([], { x: 1, y: 1 });
     path = extendSelection(path, { x: 2, y: 1 });

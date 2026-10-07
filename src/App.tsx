@@ -16,7 +16,10 @@ function Icon({ name }: { readonly name: "history" | "moon" | "sun" | "close" })
 }
 
 function useViewport() {
-  const read = () => ({ width: window.screen.width, height: window.screen.height });
+  const read = () => ({
+    width: Math.min(window.screen.width || window.innerWidth, window.innerWidth),
+    height: window.screen.height || window.innerHeight,
+  });
   const [viewport, setViewport] = useState(read);
   useEffect(() => {
     const update = () => setViewport(read());
@@ -286,14 +289,29 @@ export default function App() {
   useEffect(() => {
     void Promise.all([loadActiveGame(), loadColorMode()]).then(([active, mode]) => {
       const resolvedMode = mode === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode;
+      const profile = calculatePuzzleProfile(viewport.width, viewport.height);
+      const compatible = active !== undefined && active.profile.columns === profile.columns && active.profile.rows === profile.rows;
       setColorMode(resolvedMode);
-      try { setSession(active ?? createSession(THEMES[0]!, calculatePuzzleProfile(window.screen.width, window.screen.height))); }
+      try { setSession(compatible ? active : createSession(THEMES[0]!, profile)); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     }).catch(() => {
-      try { setSession(createSession(THEMES[0]!, calculatePuzzleProfile(window.screen.width, window.screen.height))); }
+      try { setSession(createSession(THEMES[0]!, calculatePuzzleProfile(viewport.width, viewport.height))); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     });
   }, []);
+
+  useEffect(() => {
+    if (session === undefined) return;
+    const profile = calculatePuzzleProfile(viewport.width, viewport.height);
+    if (session.profile.columns === profile.columns && session.profile.rows === profile.rows) return;
+    try {
+      const replacement = createSession(getTheme(session.themeId), profile);
+      setSession(replacement);
+      void clearActiveGame().then(() => saveActiveGame(replacement));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not resize the puzzle.");
+    }
+  }, [session, viewport.height, viewport.width]);
 
   useEffect(() => {
     const dark = colorMode === "dark" || (colorMode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
@@ -306,10 +324,10 @@ export default function App() {
     const currentIndex = THEMES.findIndex((theme) => theme.id === current.themeId);
     const nextTheme = THEMES[(currentIndex + 1) % THEMES.length]!;
     try {
-      const next = createSession(nextTheme, calculatePuzzleProfile(window.screen.width, window.screen.height));
+      const next = createSession(nextTheme, calculatePuzzleProfile(viewport.width, viewport.height));
       setSession(next); void clearActiveGame().then(() => saveActiveGame(next));
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create the next puzzle."); }
-  }, []);
+  }, [viewport.height, viewport.width]);
 
   const mobileLandscape = viewport.width < 900 && viewport.width > viewport.height;
   if (error !== undefined) return <main className="loading-screen"><p className="eyebrow">Something went wrong</p><h1>{error}</h1><button className="primary-button" onClick={() => location.reload()}>Try again</button></main>;

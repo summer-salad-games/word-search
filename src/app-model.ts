@@ -1,4 +1,4 @@
-import { Direction, generatePuzzle, type Position, type PuzzleResult } from "./index.js";
+import { Direction, generatePuzzle, PuzzleGenerationError, type Position, type PuzzleResult } from "./index.js";
 import type { PuzzleTheme } from "./themes.js";
 
 export const GENERATOR_VERSION = 3;
@@ -60,18 +60,18 @@ export function calculatePuzzleProfile(viewportWidth: number, viewportHeight: nu
   const width = Math.max(280, viewportWidth);
   const height = Math.max(480, viewportHeight);
   if (width < 480) {
-    const columns = Math.max(6, Math.floor((width - 24) / 38) - 2);
-    const rows = Math.max(9, Math.floor((height - 235) / 38) - 2);
-    return { columns, rows, borderSize: 1, targetWordCount: Math.max(4, Math.floor(columns * rows / 11)), preferredCellSize: 44 };
+    const columns = Math.max(5, Math.floor((width - 20 + 4) / 52) - 2);
+    const rows = Math.max(8, Math.floor((height - 220 + 4) / 52) - 2);
+    return { columns, rows, borderSize: 1, targetWordCount: Math.max(5, Math.floor(columns * rows / 10)), preferredCellSize: 52 };
   }
   if (width < 800) {
-    const columns = Math.max(9, Math.floor((width - 32) / 40) - 2);
-    const rows = Math.max(10, Math.floor((height - 240) / 39) - 2);
-    return { columns, rows, borderSize: 1, targetWordCount: Math.max(6, Math.floor(columns * rows / 14)), preferredCellSize: 44 };
+    const columns = Math.max(8, Math.min(12, Math.floor((width - 32 + 4) / 52) - 2));
+    const rows = Math.max(10, Math.min(14, Math.floor((height - 235 + 4) / 52) - 2));
+    return { columns, rows, borderSize: 1, targetWordCount: Math.max(7, Math.floor(columns * rows / 10)), preferredCellSize: 52 };
   }
-  const columns = Math.max(14, Math.floor((width - 96) / 58) - 2);
-  const rows = Math.max(10, Math.floor((height - 255) / 50) - 2);
-  return { columns, rows, borderSize: 1, targetWordCount: Math.max(10, Math.min(14, Math.floor(columns * rows / 14))), preferredCellSize: 58 };
+  const columns = Math.max(14, Math.min(16, Math.floor((width - 96) / 64) - 2));
+  const rows = Math.max(9, Math.min(10, Math.floor((height - 255) / 58) - 2));
+  return { columns, rows, borderSize: 1, targetWordCount: Math.max(10, Math.min(14, Math.floor(columns * rows / 10))), preferredCellSize: 64 };
 }
 
 function hash(value: string): number {
@@ -84,7 +84,10 @@ function hash(value: string): number {
 }
 
 function orderedWords(words: readonly string[], seed: string): string[] {
-  return [...words].sort((left, right) => hash(`${seed}:${left}`) - hash(`${seed}:${right}`));
+  return [...words].sort((left, right) => {
+    const lengthDifference = Array.from(right).length - Array.from(left).length;
+    return lengthDifference || hash(`${seed}:${left}`) - hash(`${seed}:${right}`);
+  });
 }
 
 export function generateCompletePuzzle(theme: PuzzleTheme, profile: PuzzleProfile, seed: string): { puzzle: PuzzleResult; targetWords: string[] } {
@@ -93,23 +96,27 @@ export function generateCompletePuzzle(theme: PuzzleTheme, profile: PuzzleProfil
   for (let count = Math.min(profile.targetWordCount, ordered.length); count >= minimumWords; count -= 1) {
     const targetWords = ordered.slice(0, count);
     for (let attempt = 0; attempt < 24; attempt += 1) {
-      const puzzle = generatePuzzle({
-        theme: theme.title,
-        words: targetWords,
-        seed: `${seed}:${attempt}`,
-        configuration: {
-          gridSize: { width: profile.columns, height: profile.rows },
-          borderSize: profile.borderSize,
-          useBorder: true,
-          allowedDirections: [Direction.up, Direction.right, Direction.down, Direction.left],
-          wordsOverlap: false,
-          selfIntersect: false,
-          wordsIntersect: false,
-          useBacktracking: true,
-          fillPercentage: 1,
-        },
-      });
-      if (puzzle.unplacedWords.length === 0) return { puzzle, targetWords };
+      try {
+        const puzzle = generatePuzzle({
+          theme: theme.title,
+          words: targetWords,
+          seed: `${seed}:${attempt}`,
+          configuration: {
+            gridSize: { width: profile.columns, height: profile.rows },
+            borderSize: profile.borderSize,
+            useBorder: true,
+            allowedDirections: [Direction.up, Direction.right, Direction.down, Direction.left],
+            wordsOverlap: false,
+            selfIntersect: false,
+            wordsIntersect: false,
+            useBacktracking: true,
+            fillPercentage: 1,
+          },
+        });
+        if (puzzle.unplacedWords.length === 0) return { puzzle, targetWords };
+      } catch (error) {
+        if (!(error instanceof PuzzleGenerationError)) throw error;
+      }
     }
   }
   throw new Error(`Could not place a complete word set for ${theme.title}.`);
