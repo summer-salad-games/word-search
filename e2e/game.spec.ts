@@ -2,7 +2,9 @@ import { expect, test } from "@playwright/test";
 
 test("plays a complete puzzle and persists it to history", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  const heading = page.getByRole("heading", { level: 1 });
+  await expect(heading).toBeVisible();
+  const themeTitle = (await heading.textContent())!;
   const chips = page.locator(".word-chip");
   const words = await chips.allTextContents();
   const cells = await page.locator("[data-cell]").evaluateAll((elements) => elements.map((element) => ({
@@ -42,9 +44,9 @@ test("plays a complete puzzle and persists it to history", async ({ page }) => {
   }
   await expect(page.getByRole("dialog", { name: "Nicely found." })).toBeVisible();
   await page.getByRole("button", { name: /Next puzzle/ }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Ocean" })).toBeVisible();
+  await expect(heading).not.toHaveText(themeTitle);
   await page.getByRole("button", { name: "Open history" }).click();
-  await expect(page.getByRole("dialog", { name: "History" })).toContainText("Nature");
+  await expect(page.getByRole("dialog", { name: "History" })).toContainText(themeTitle);
 });
 
 test("rolls an incorrect selection back cell by cell", async ({ page }) => {
@@ -55,7 +57,10 @@ test("rolls an incorrect selection back cell by cell", async ({ page }) => {
   await page.mouse.move(first!.x + first!.width / 2, first!.y + first!.height / 2);
   await page.mouse.down();
   await page.mouse.move(second!.x + second!.width / 2, second!.y + second!.height / 2, { steps: 3 });
-  await expect(page.locator('.puzzle-cell.is-active').first()).toHaveCSS("background-color", "rgb(22, 138, 173)");
+  expect(await page.locator(".puzzle-cell.is-active").first().evaluate((element) => {
+    const style = getComputedStyle(element);
+    return style.backgroundColor === style.borderTopColor;
+  })).toBe(true);
   await page.mouse.up();
   await expect(page.locator(".puzzle-grid")).toHaveClass(/is-locked/);
   await expect(page.locator(".puzzle-cell.is-active")).toHaveCount(0);
@@ -158,7 +163,7 @@ test("can cancel reset or erase all application state", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.getByRole("button", { name: "Reset progress" }).click();
   await page.getByRole("button", { name: "Reset everything" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Nature" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.locator(".game-footer")).toContainText("0 attempts");
   expect(await page.evaluate(async () => {

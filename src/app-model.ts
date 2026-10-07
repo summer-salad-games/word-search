@@ -1,7 +1,7 @@
 import { Direction, generatePuzzle, PuzzleGenerationError, type Position, type PuzzleResult } from "./index.js";
 import type { PuzzleTheme } from "./themes.js";
 
-export const GENERATOR_VERSION = 3;
+export const GENERATOR_VERSION = 4;
 
 function randomId(): string {
   if (typeof globalThis.crypto.randomUUID === "function") return globalThis.crypto.randomUUID();
@@ -85,8 +85,9 @@ function hash(value: string): number {
 
 function orderedWords(words: readonly string[], seed: string): string[] {
   return [...words].sort((left, right) => {
-    const lengthDifference = Array.from(right).length - Array.from(left).length;
-    return lengthDifference || hash(`${seed}:${left}`) - hash(`${seed}:${right}`);
+    const leftDistance = Math.abs(Array.from(left).length - 6);
+    const rightDistance = Math.abs(Array.from(right).length - 6);
+    return leftDistance - rightDistance || hash(`${seed}:${left}`) - hash(`${seed}:${right}`);
   });
 }
 

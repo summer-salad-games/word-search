@@ -7,7 +7,7 @@ describe("App", () => {
   it("renders a complete responsive puzzle and opens history in-place", async () => {
     const user = userEvent.setup();
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "Nature" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
     const grid = await screen.findByRole("grid");
     expect(grid.querySelectorAll("[role=gridcell]").length).toBeGreaterThan(70);
     expect(screen.getAllByText(/^[a-z]+$/i).length).toBeGreaterThan(4);
@@ -21,7 +21,7 @@ describe("App", () => {
     Object.defineProperty(window, "matchMedia", { configurable: true, value: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }) });
     const user = userEvent.setup();
     render(<App />);
-    await screen.findByRole("heading", { name: "Nature" });
+    await screen.findByRole("heading", { level: 1 });
     await waitFor(() => expect(document.documentElement.dataset.theme).toBe("dark"));
     await user.click(screen.getByRole("button", { name: "Toggle color mode" }));
     expect(document.documentElement.dataset.theme).toBe("light");

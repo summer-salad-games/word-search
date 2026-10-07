@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { calculatePuzzleProfile, createSession, extendSelection, formatDuration, gameReducer, pathsMatch, positionKey, resetSession, GENERATOR_VERSION, type GameSession } from "./app-model.js";
 import { clearActiveGame, loadActiveGame, loadColorMode, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveHistory, type ColorMode, type HistoryRecord } from "./persistence.js";
-import { getTheme, THEMES } from "./themes.js";
+import { getTheme, selectRandomTheme } from "./themes.js";
 import type { Position, PuzzleCell } from "./types.js";
 import "./styles.css";
 
@@ -366,10 +366,10 @@ export default function App() {
       const resolvedMode = mode === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode;
       const profile = calculatePuzzleProfile(viewport.width, viewport.height);
       setColorMode(resolvedMode);
-      try { setSession(active ?? createSession(THEMES[0]!, profile)); }
+      try { setSession(active ?? createSession(selectRandomTheme(), profile)); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     }).catch(() => {
-      try { setSession(createSession(THEMES[0]!, calculatePuzzleProfile(viewport.width, viewport.height))); }
+      try { setSession(createSession(selectRandomTheme(), calculatePuzzleProfile(viewport.width, viewport.height))); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     });
   }, []);
@@ -389,15 +389,14 @@ export default function App() {
   const resetEverything = useCallback(() => {
     void resetApplicationState().then(() => {
       const mode: ColorMode = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      const fresh = createSession(THEMES[0]!, calculatePuzzleProfile(viewport.width, viewport.height));
+      const fresh = createSession(selectRandomTheme(), calculatePuzzleProfile(viewport.width, viewport.height));
       setColorMode(mode);
       setSession(fresh);
       void saveActiveGame(fresh);
     }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not reset the application."));
   }, [viewport.height, viewport.width]);
   const nextPuzzle = useCallback((current: GameSession) => {
-    const currentIndex = THEMES.findIndex((theme) => theme.id === current.themeId);
-    const nextTheme = THEMES[(currentIndex + 1) % THEMES.length]!;
+    const nextTheme = selectRandomTheme(current.themeId);
     try {
       const next = createSession(nextTheme, calculatePuzzleProfile(viewport.width, viewport.height));
       setSession(next); void clearActiveGame().then(() => saveActiveGame(next));
