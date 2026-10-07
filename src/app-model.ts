@@ -1,7 +1,7 @@
 import { Direction, generatePuzzle, PuzzleGenerationError, type Position, type PuzzleResult } from "./index.js";
 import type { PuzzleTheme } from "./themes.js";
 
-export const GENERATOR_VERSION = 4;
+export const GENERATOR_VERSION = 3;
 
 function randomId(): string {
   if (typeof globalThis.crypto.randomUUID === "function") return globalThis.crypto.randomUUID();
@@ -20,7 +20,6 @@ export interface PuzzleProfile {
 export interface GameSession {
   readonly id: string;
   readonly themeId: string;
-  readonly deviceClass: "mobile" | "desktop";
   readonly seed: string;
   readonly puzzle: PuzzleResult;
   readonly targetWords: readonly string[];
@@ -123,14 +122,9 @@ export function generateCompletePuzzle(theme: PuzzleTheme, profile: PuzzleProfil
   throw new Error(`Could not place a complete word set for ${theme.title}.`);
 }
 
-export function createSession(
-  theme: PuzzleTheme,
-  profile: PuzzleProfile,
-  seed = randomId(),
-  deviceClass: "mobile" | "desktop" = profile.preferredCellSize < 60 ? "mobile" : "desktop",
-): GameSession {
+export function createSession(theme: PuzzleTheme, profile: PuzzleProfile, seed = randomId()): GameSession {
   const { puzzle, targetWords } = generateCompletePuzzle(theme, profile, seed);
-  return { id: randomId(), themeId: theme.id, deviceClass, seed, puzzle, targetWords, solvedWords: [], solvedColors: {}, attempts: 0, elapsedMs: 0, status: "playing", profile };
+  return { id: randomId(), themeId: theme.id, seed, puzzle, targetWords, solvedWords: [], solvedColors: {}, attempts: 0, elapsedMs: 0, status: "playing", profile };
 }
 
 export function resetSession(session: GameSession): GameSession {
