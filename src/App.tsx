@@ -219,12 +219,21 @@ function PuzzleGrid({ session, colors, onAttempt, attemptColor, debugWords }: Gr
   );
 }
 
-function HistoryDialog({ records, onClose }: { readonly records: readonly HistoryRecord[]; readonly onClose: () => void }) {
-  const totals = records.reduce((result, record) => ({
+function summarizeHistory(records: readonly HistoryRecord[]) {
+  return records.reduce((result, record) => ({
     elapsedMs: result.elapsedMs + record.elapsedMs,
     words: result.words + record.wordCount,
     attempts: result.attempts + record.attempts,
   }), { elapsedMs: 0, words: 0, attempts: 0 });
+}
+
+function historyRecordFor(session: GameSession): HistoryRecord {
+  if (session.completedAt === undefined) throw new Error("Cannot create history for an unfinished puzzle.");
+  return { id: session.id, themeId: session.themeId, themeTitle: getTheme(session.themeId).title, seed: session.seed, elapsedMs: session.elapsedMs, wordCount: session.targetWords.length, attempts: session.attempts, completedAt: session.completedAt, profile: session.profile, generatorVersion: GENERATOR_VERSION };
+}
+
+function HistoryDialog({ records, completedCount, onClose }: { readonly records: readonly HistoryRecord[]; readonly completedCount: number; readonly onClose: () => void }) {
+  const totals = summarizeHistory(records);
   return (
     <div className="overlay" role="presentation">
       <section className="dialog history-dialog" role="dialog" aria-modal="true" aria-labelledby="history-title">
@@ -232,7 +241,7 @@ function HistoryDialog({ records, onClose }: { readonly records: readonly Histor
         <section className="history-summary" aria-label="Global progress">
           <p className="eyebrow">Global progress</p>
           <dl>
-            <div><dt>Puzzles</dt><dd>{records.length}</dd></div>
+            <div><dt>Progress</dt><dd>{completedCount} / {THEMES.length}</dd></div>
             <div><dt>Total time</dt><dd>{formatDuration(totals.elapsedMs)}</dd></div>
             <div><dt>Words found</dt><dd>{totals.words}</dd></div>
             <div><dt>Attempts</dt><dd>{totals.attempts}</dd></div>
@@ -264,13 +273,25 @@ function WinDialog({ session, onNext }: { readonly session: GameSession; readonl
   );
 }
 
-function CollectionCompleteDialog({ onReset }: { readonly onReset: () => void }) {
+function CollectionCompleteDialog({ session, records, onReset }: { readonly session: GameSession; readonly records: readonly HistoryRecord[]; readonly onReset: () => void }) {
+  const completeRecords = records.some(({ id }) => id === session.id) ? records : [historyRecordFor(session), ...records];
+  const totals = summarizeHistory(completeRecords);
   return (
     <div className="overlay celebration" role="presentation">
       <section className="dialog win-dialog" role="dialog" aria-modal="true" aria-labelledby="collection-title">
         <div className="win-mark">★</div><p className="eyebrow">Every puzzle complete</p><h2 id="collection-title">You found them all!</h2>
-        <p className="dialog-copy">Congratulations — you completed all {THEMES.length} word-search grids. Reset to clear your history and begin a brand-new journey.</p>
-        <button className="primary-button" onClick={onReset}>Reset and start over <span aria-hidden="true">↻</span></button>
+        <p className="dialog-copy">Congratulations — you completed all {THEMES.length} word-search grids.</p>
+        <section className="history-summary lifetime-summary" aria-label="Lifetime summary">
+          <p className="eyebrow">Lifetime summary</p>
+          <dl>
+            <div><dt>Puzzles</dt><dd>{completeRecords.length}</dd></div>
+            <div><dt>Total time</dt><dd>{formatDuration(totals.elapsedMs)}</dd></div>
+            <div><dt>Words found</dt><dd>{totals.words}</dd></div>
+            <div><dt>Attempts</dt><dd>{totals.attempts}</dd></div>
+          </dl>
+        </section>
+        <p className="dialog-copy">Reset everything to clear this summary, your history, preferences, and all progress before starting over.</p>
+        <button className="primary-button" onClick={onReset}>Reset everything <span aria-hidden="true">↻</span></button>
       </section>
     </div>
   );
@@ -294,9 +315,11 @@ function ResetDialog({ onBoard, onEverything, onClose }: {
   );
 }
 
-function Game({ initialSession, colorMode, isFinalPuzzle, onColorMode, onSession, onComplete, onNext, onReset, onResetEverything, onDebugLoadTheme }: {
+function Game({ initialSession, colorMode, isFinalPuzzle, completedCount, lifetimeRecords, onColorMode, onSession, onComplete, onNext, onReset, onResetEverything, onDebugLoadTheme }: {
   readonly initialSession: GameSession; readonly colorMode: ColorMode; readonly onColorMode: (mode: ColorMode) => void;
   readonly isFinalPuzzle: boolean;
+  readonly completedCount: number;
+  readonly lifetimeRecords: readonly HistoryRecord[];
   readonly onSession: (session: GameSession) => void; readonly onNext: (session: GameSession) => void;
   readonly onComplete: (session: GameSession) => void;
   readonly onReset: (session: GameSession) => void;
@@ -366,10 +389,10 @@ function Game({ initialSession, colorMode, isFinalPuzzle, onColorMode, onSession
         <section className="board-stage"><PuzzleGrid session={session} colors={colors} onAttempt={onAttempt} attemptColor={attemptColor} debugWords={debugWords} /></section>
       </div>
       <footer className="game-footer"><span>{session.solvedWords.length} / {session.targetWords.length} found</span><span>{session.attempts} attempts</span></footer>
-      {historyOpen && <HistoryDialog records={history} onClose={() => setHistoryOpen(false)} />}
+      {historyOpen && <HistoryDialog records={history} completedCount={completedCount} onClose={() => setHistoryOpen(false)} />}
       {resetOpen && <ResetDialog onBoard={() => onReset(session)} onEverything={onResetEverything} onClose={() => setResetOpen(false)} />}
       {session.status === "completed" && (isFinalPuzzle
-        ? <CollectionCompleteDialog onReset={onResetEverything} />
+        ? <CollectionCompleteDialog session={session} records={lifetimeRecords} onReset={onResetEverything} />
         : <WinDialog session={session} onNext={() => onNext(session)} />)}
     </main>
   );
@@ -380,15 +403,17 @@ export default function App() {
   const [session, setSession] = useState<GameSession>();
   const [colorMode, setColorMode] = useState<ColorMode>("system");
   const [completedThemeIds, setCompletedThemeIds] = useState<readonly string[]>([]);
+  const [lifetimeRecords, setLifetimeRecords] = useState<readonly HistoryRecord[]>([]);
   const [error, setError] = useState<string>();
 
   useEffect(() => {
-    void Promise.all([loadActiveGame(), loadColorMode(), loadCompletedThemeIds()]).then(([active, mode, persistedCompleted]) => {
+    void Promise.all([loadActiveGame(), loadColorMode(), loadCompletedThemeIds(), loadHistory()]).then(([active, mode, persistedCompleted, persistedHistory]) => {
       const resolvedMode = mode === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode;
       const knownIds = new Set(THEMES.map((theme) => theme.id));
       const completed = persistedCompleted.filter((id) => knownIds.has(id));
       setColorMode(resolvedMode);
       setCompletedThemeIds(completed);
+      setLifetimeRecords(persistedHistory);
       try {
         const theme = active === undefined ? selectRandomTheme(new Set(completed)) : undefined;
         setSession(active ?? createSession(theme ?? selectRandomTheme()!, profileForCurrentScreen()));
@@ -418,6 +443,7 @@ export default function App() {
       const fresh = createSession(selectRandomTheme()!, profileForCurrentScreen());
       setColorMode(mode);
       setCompletedThemeIds([]);
+      setLifetimeRecords([]);
       setSession(fresh);
       void saveActiveGame(fresh);
     }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not reset the application."));
@@ -425,8 +451,9 @@ export default function App() {
   const completePuzzle = useCallback((completed: GameSession) => {
     if (completed.completedAt === undefined) return;
     setCompletedThemeIds((current) => current.includes(completed.themeId) ? current : [...current, completed.themeId]);
-    const theme = getTheme(completed.themeId);
-    void saveCompletion({ id: completed.id, themeId: completed.themeId, themeTitle: theme.title, seed: completed.seed, elapsedMs: completed.elapsedMs, wordCount: completed.targetWords.length, attempts: completed.attempts, completedAt: completed.completedAt, profile: completed.profile, generatorVersion: GENERATOR_VERSION })
+    const record = historyRecordFor(completed);
+    setLifetimeRecords((current) => current.some(({ id }) => id === record.id) ? current : [record, ...current]);
+    void saveCompletion(record)
       .then(setCompletedThemeIds)
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not save puzzle completion."));
   }, []);
@@ -460,5 +487,5 @@ export default function App() {
   if (error !== undefined) return <main className="loading-screen"><p className="eyebrow">Something went wrong</p><h1>{error}</h1><button className="primary-button" onClick={() => location.reload()}>Try again</button></main>;
   if (session === undefined) return <main className="loading-screen"><div className="loader"/><p>Preparing your puzzle…</p></main>;
   const completedBeforeCurrent = completedThemeIds.filter((id) => id !== session.themeId).length;
-  return <Game key={session.id} initialSession={session} colorMode={colorMode} isFinalPuzzle={completedBeforeCurrent === THEMES.length - 1} onColorMode={updateMode} onSession={updateSession} onComplete={completePuzzle} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything} onDebugLoadTheme={loadDebugTheme}/>;
+  return <Game key={session.id} initialSession={session} colorMode={colorMode} isFinalPuzzle={completedBeforeCurrent === THEMES.length - 1} completedCount={completedThemeIds.length} lifetimeRecords={lifetimeRecords} onColorMode={updateMode} onSession={updateSession} onComplete={completePuzzle} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything} onDebugLoadTheme={loadDebugTheme}/>;
 }

@@ -54,7 +54,7 @@ test("plays a complete puzzle and persists it to history", async ({ page }) => {
   const history = page.getByRole("dialog", { name: "History" });
   await expect(history).toContainText(themeTitle);
   const progress = page.getByRole("region", { name: "Global progress" });
-  await expect(progress).toContainText("Puzzles1");
+  await expect(progress).toContainText("Progress1 / 500");
   await expect(progress).toContainText(`Words found${wordCount}`);
   await expect(progress).toContainText(`Attempts${wordCount}`);
 });
@@ -116,7 +116,11 @@ test("congratulates the player after the final unique grid and resets the whole 
   await solveCurrentPuzzle(page);
 
   await expect(page.getByRole("dialog", { name: "You found them all!" })).toContainText("all 500 word-search grids");
-  await page.getByRole("button", { name: /Reset and start over/ }).click();
+  const lifetime = page.getByRole("region", { name: "Lifetime summary" });
+  await expect(lifetime).toContainText("Puzzles1");
+  await expect(lifetime).toContainText(/Words found\d+/);
+  await expect(lifetime).toContainText(/Attempts\d+/);
+  await page.getByRole("button", { name: /Reset everything/ }).click();
   await expect(page.getByRole("dialog", { name: "You found them all!" })).not.toBeVisible();
   await expect(page.locator(".game-footer")).toContainText("0 attempts");
   expect(await page.evaluate(async () => {
