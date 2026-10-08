@@ -6,6 +6,7 @@ export interface PuzzleTheme {
   readonly words: readonly string[];
   readonly colors: readonly string[];
   readonly fillCharacters?: readonly string[];
+  readonly maxWords?: number;
   readonly rare?: boolean;
 }
 
@@ -46,26 +47,26 @@ const STANDARD_THEMES: readonly PuzzleTheme[] = THEME_BANKS.flatMap((bank, bankI
   }),
 );
 
-const rare = (id: string, title: string, words: string, fillCharacters: string): PuzzleTheme => Object.freeze({
+const rare = (id: string, title: string, words: string, fillCharacters: string, maxWords?: number): PuzzleTheme => Object.freeze({
   id: `egg-${id}`,
   title,
   words: Object.freeze(words.trim().split(/\s+/u)),
   colors: PALETTES[hash(id) % PALETTES.length]!,
   fillCharacters: Object.freeze(fillCharacters.trim().split(/\s+/u)),
+  ...(maxWords === undefined ? {} : { maxWords }),
   rare: true,
 });
 
 const RARE_THEMES: readonly PuzzleTheme[] = Object.freeze([
   rare("needle", "Needle", ",", "."),
-  rare("emoji", "Emoji", "😀 😃 😄 😁 😆 😅 😂 😊 😇 🙂 🙃 😉 😌 😍 😎 🤓 🥳 🤩 😴 🤖 👻 👽 🎃 🐵 🦊 🐼 🐸 🐙 🐳 🦋", "🍎 🍋 🍉 🍇 🍓 🍒 🥝 🥕 🌽 🍄 🌵 🌻 🌙 ⭐ ☀ ⚡ ❄ ☁ ☂ ⚽ 🎲 🚗 🚀 ✈ ⌛ ⏰ 🔑 💎 🎁"),
-  rare("morse", "Morse", "a·− b−··· c−·−· d−·· e· f··−· g−−· h···· i·· j·−−− k−·− l·−·· m−− n−· o−−− p·−−· q−−·− r·−· s··· t− u··− v···− w·−− x−··− y−·−− z−−··", "○ ● ◦ •"),
-  rare("arrows", "Arrows", "↑ → ↓ ← ↖ ↗ ↘ ↙ ↔ ↕ ↜ ↝ ↞ ↟ ↠ ↡ ↢ ↣ ↤ ↥ ↦ ↧ ⇐ ⇑ ⇒ ⇓ ⇔ ⇕", "⇖ ⇗ ⇘ ⇙ ➔ ➜ ➝ ➞"),
+  rare("emoji", "Emoji", "😀 😃 😄 😁 😆 😅 😂 😊 😇 🙂 🙃 😉 😌 😍 😎 🤓 🥳 🤩 😴 🤖 👻 👽 🎃 🐵 🦊 🐼 🐸 🐙 🐳 🦋", "🍎 🍋 🍉 🍇 🍓 🍒 🥝 🥕 🌽 🍄 🌵 🌻 🌙 ⭐ ☀ ⚡ ❄ ☁ ☂ ⚽ 🎲 🚗 🚀 ✈ ⌛ ⏰ 🔑 💎 🎁", 12),
+  rare("morse", "Morse", "a·− b−··· c−·−· d−·· e· f··−· g−−· h···· i·· j·−−− k−·− l·−·· m−− n−· o−−− p·−−· q−−·− r·−· s··· t− u··− v···− w·−− x−··− y−·−− z−−··", "○ ● ◦ •", 6),
+  rare("arrows", "Arrows", "↑ → ↓ ← ↖ ↗ ↘ ↙ ↔ ↕ ↜ ↝ ↞ ↟ ↠ ↡ ↢ ↣ ↤ ↥ ↦ ↧ ⇐ ⇑ ⇒ ⇓ ⇔ ⇕", "⇖ ⇗ ⇘ ⇙ ➔ ➜ ➝ ➞", 12),
   rare("music", "Music", "♩ ♪ ♫ ♬ ♭ ♮ ♯", "• ◦ · ○"),
-  rare("braille", "Braille", "⠁ ⠃ ⠉ ⠙ ⠑ ⠋ ⠛ ⠓ ⠊ ⠚ ⠅ ⠇ ⠍ ⠝ ⠕ ⠏ ⠟ ⠗ ⠎ ⠞ ⠥ ⠧ ⠺ ⠭ ⠽ ⠵", "⡀ ⡄ ⡆ ⡇ ⣀ ⣄ ⣆ ⣇ ⣿"),
-  rare("roman", "Roman", "Ⅰ Ⅱ Ⅲ Ⅳ Ⅴ Ⅵ Ⅶ Ⅷ Ⅸ Ⅹ Ⅺ Ⅻ Ⅼ Ⅽ Ⅾ Ⅿ", "· • ○ ◦"),
-  rare("greek", "Greek", "άλφα βήτα γάμμα δέλτα κόσμος μύθος ήλιος σελήνη άστρο γη νερό φωτιά αέρας σοφία νίκη αρμονία μουσική ποίηση θέατρο όνειρο φως χρόνος ψυχή", "α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ τ υ φ χ ψ ω"),
-  rare("glitch", "Glitch", "err0r gl1tch 0ffline rebo0t c4che c00kie serv3r cl1ent requ3st resp0nse t1meout red1rect br0ken f1xed d3bug tr4ce st4ck c0nsole netw0rk pr0tocol p4cket fe4ture", "# @ % &"),
-  rare("palindrome", "Palindrome", "level radar civic rotor kayak refer madam racecar noon tenet stats solos minim reviver repaper deified rotator wow mom dad eye peep toot pop gig", "a e i o u y"),
+  rare("braille", "Braille", "⠁ ⠃ ⠉ ⠙ ⠑ ⠋ ⠛ ⠓ ⠊ ⠚ ⠅ ⠇ ⠍ ⠝ ⠕ ⠏ ⠟ ⠗ ⠎ ⠞ ⠥ ⠧ ⠺ ⠭ ⠽ ⠵", "⡀ ⡄ ⡆ ⡇ ⣀ ⣄ ⣆ ⣇ ⣿", 12),
+  rare("greek", "Greek", "άλφα βήτα γάμμα δέλτα κόσμος μύθος ήλιος σελήνη άστρο γη νερό φωτιά αέρας σοφία νίκη αρμονία μουσική ποίηση θέατρο όνειρο φως χρόνος ψυχή", "α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ τ υ φ χ ψ ω", 8),
+  rare("glitch", "Glitch", "err0r gl1tch 0ffline rebo0t c4che c00kie serv3r cl1ent requ3st resp0nse t1meout red1rect br0ken f1xed d3bug tr4ce st4ck c0nsole netw0rk pr0tocol p4cket fe4ture", "# @ % &", 8),
+  rare("palindrome", "Palindrome", "level radar civic rotor kayak refer madam racecar noon tenet stats solos minim reviver repaper deified rotator wow mom dad eye peep toot pop gig", "a e i o u y", 8),
 ]);
 
 export const THEMES: readonly PuzzleTheme[] = Object.freeze([...STANDARD_THEMES, ...RARE_THEMES]);

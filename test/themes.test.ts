@@ -3,10 +3,11 @@ import { calculatePuzzleProfile, generateCompletePuzzle } from "../src/app-model
 import { THEME_COUNTS, THEMES, selectRandomTheme } from "../src/themes.js";
 
 describe("theme catalog", () => {
-  it("contains 490 standard themes and 10 rare easter eggs", () => {
-    expect(THEME_COUNTS).toEqual({ common: 490, rare: 10, total: 500 });
-    expect(THEMES).toHaveLength(500);
-    expect(new Set(THEMES.map(({ id }) => id)).size).toBe(500);
+  it("contains 490 standard themes and 9 rare easter eggs", () => {
+    expect(THEME_COUNTS).toEqual({ common: 490, rare: 9, total: 499 });
+    expect(THEMES).toHaveLength(499);
+    expect(new Set(THEMES.map(({ id }) => id)).size).toBe(499);
+    expect(THEMES.some(({ id }) => id === "egg-roman")).toBe(false);
     expect(THEMES.every(({ title }) => /^\S+$/u.test(title))).toBe(true);
     const needle = THEMES.find(({ id }) => id === "egg-needle")!;
     expect(needle.words).toEqual([","]);
@@ -57,7 +58,7 @@ describe("theme catalog", () => {
     for (const theme of THEMES.filter((candidate) => candidate.rare)) {
       const result = generateCompletePuzzle(theme, profile, `catalog-desktop:${theme.id}`);
       expect(result.puzzle.unplacedWords, theme.id).toEqual([]);
-      expect(result.targetWords.length, theme.id).toBe(Math.min(profile.targetWordCount, theme.words.length));
+      expect(result.targetWords.length, theme.id).toBe(Math.min(profile.targetWordCount, theme.maxWords ?? Number.POSITIVE_INFINITY, theme.words.length));
       const fillCharacters = new Set(theme.fillCharacters);
       for (const cell of result.puzzle.grid.flat()) {
         if (cell.words.length === 0) expect(fillCharacters.has(cell.letter), `${theme.id}:${cell.position.x},${cell.position.y}`).toBe(true);

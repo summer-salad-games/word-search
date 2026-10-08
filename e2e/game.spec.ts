@@ -109,7 +109,7 @@ test("congratulates the player after the final unique grid and resets the whole 
   await page.locator(".puzzle-grid").waitFor();
   await solveCurrentPuzzle(page);
 
-  await expect(page.getByRole("dialog", { name: "You found them all!" })).toContainText("all 500 word-search grids");
+  await expect(page.getByRole("dialog", { name: "You found them all!" })).toContainText("all 499 word-search grids");
   await page.getByRole("button", { name: /Reset and start over/ }).click();
   await expect(page.getByRole("dialog", { name: "You found them all!" })).not.toBeVisible();
   await expect(page.locator(".game-footer")).toContainText("0 attempts");
@@ -222,6 +222,14 @@ test("exposes console-only word highlighting in both color modes", async ({ page
   await expect(highlighted.first()).toHaveCSS("background-color", "rgb(160, 163, 166)");
   await page.evaluate(() => window.wordSearchDebug?.hideWords());
   await expect(highlighted).toHaveCount(0);
+});
+
+test("loads a requested theme through the console debug API", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".puzzle-grid").waitFor();
+  expect(await page.evaluate(() => window.wordSearchDebug?.loadTheme("Emoji"))).toBe("egg-emoji");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Emoji");
+  await expect(page.locator(".word-chip")).toHaveCount(6);
 });
 
 test("can cancel reset or erase all application state", async ({ page }) => {

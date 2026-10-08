@@ -102,7 +102,7 @@ function orderedWords(words: readonly string[], seed: string): string[] {
 export function generateCompletePuzzle(theme: PuzzleTheme, profile: PuzzleProfile, seed: string): { puzzle: PuzzleResult; targetWords: string[] } {
   const ordered = orderedWords(theme.words, seed);
   const minimumWords = Math.min(4, ordered.length);
-  for (let count = Math.min(profile.targetWordCount, ordered.length); count >= minimumWords; count -= 1) {
+  for (let count = Math.min(profile.targetWordCount, theme.maxWords ?? Number.POSITIVE_INFINITY, ordered.length); count >= minimumWords; count -= 1) {
     const targetWords = ordered.slice(0, count);
     for (let attempt = 0; attempt < 24; attempt += 1) {
       try {

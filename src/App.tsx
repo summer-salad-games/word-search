@@ -9,6 +9,7 @@ interface WordSearchDebugApi {
   highlightWords(): void;
   hideWords(): void;
   toggleWords(): void;
+  loadTheme(idOrTitle: string): string;
 }
 
 declare global {
@@ -279,13 +280,14 @@ function ResetDialog({ onBoard, onEverything, onClose }: {
   );
 }
 
-function Game({ initialSession, colorMode, isFinalPuzzle, onColorMode, onSession, onComplete, onNext, onReset, onResetEverything }: {
+function Game({ initialSession, colorMode, isFinalPuzzle, onColorMode, onSession, onComplete, onNext, onReset, onResetEverything, onDebugLoadTheme }: {
   readonly initialSession: GameSession; readonly colorMode: ColorMode; readonly onColorMode: (mode: ColorMode) => void;
   readonly isFinalPuzzle: boolean;
   readonly onSession: (session: GameSession) => void; readonly onNext: (session: GameSession) => void;
   readonly onComplete: (session: GameSession) => void;
   readonly onReset: (session: GameSession) => void;
   readonly onResetEverything: () => void;
+  readonly onDebugLoadTheme: (idOrTitle: string) => string;
 }) {
   const [session, dispatch] = useReducer(gameReducer, initialSession);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -318,10 +320,11 @@ function Game({ initialSession, colorMode, isFinalPuzzle, onColorMode, onSession
       highlightWords: () => setDebugWords(true),
       hideWords: () => setDebugWords(false),
       toggleWords: () => setDebugWords((current) => !current),
+      loadTheme: onDebugLoadTheme,
     };
     window.wordSearchDebug = api;
     return () => { if (window.wordSearchDebug === api) delete window.wordSearchDebug; };
-  }, []);
+  }, [onDebugLoadTheme]);
 
   const onAttempt = (path: readonly Position[]) => {
     const match = session.puzzle.entries.find((entry) => !session.solvedWords.includes(entry.word) && pathsMatch(path, entry.path));
@@ -422,10 +425,26 @@ export default function App() {
       setSession(next); void clearActiveGame().then(() => saveActiveGame(next));
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create the next puzzle."); }
   }, [completedThemeIds]);
+  const loadDebugTheme = useCallback((idOrTitle: string) => {
+    if (typeof idOrTitle !== "string" || idOrTitle.trim() === "") throw new Error("Provide a theme ID or title.");
+    const query = idOrTitle.trim().toLocaleLowerCase("und");
+    const exactId = THEMES.find((theme) => theme.id.toLocaleLowerCase("und") === query);
+    const titleMatches = THEMES.filter((theme) => theme.title.toLocaleLowerCase("und") === query);
+    if (exactId === undefined && titleMatches.length > 1) {
+      throw new Error(`Theme title “${idOrTitle}” is ambiguous. Use one of: ${titleMatches.map(({ id }) => id).join(", ")}`);
+    }
+    const theme = exactId ?? titleMatches[0];
+    if (theme === undefined) throw new Error(`Unknown theme: ${idOrTitle}`);
+    const loaded = createSession(theme, profileForCurrentScreen());
+    setError(undefined);
+    setSession(loaded);
+    void clearActiveGame().then(() => saveActiveGame(loaded));
+    return theme.id;
+  }, []);
 
   if (mobileLandscape) return <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for portrait play.</span></div>;
   if (error !== undefined) return <main className="loading-screen"><p className="eyebrow">Something went wrong</p><h1>{error}</h1><button className="primary-button" onClick={() => location.reload()}>Try again</button></main>;
   if (session === undefined) return <main className="loading-screen"><div className="loader"/><p>Preparing your puzzle…</p></main>;
   const completedBeforeCurrent = completedThemeIds.filter((id) => id !== session.themeId).length;
-  return <Game key={session.id} initialSession={session} colorMode={colorMode} isFinalPuzzle={completedBeforeCurrent === THEMES.length - 1} onColorMode={updateMode} onSession={updateSession} onComplete={completePuzzle} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything}/>;
+  return <Game key={session.id} initialSession={session} colorMode={colorMode} isFinalPuzzle={completedBeforeCurrent === THEMES.length - 1} onColorMode={updateMode} onSession={updateSession} onComplete={completePuzzle} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything} onDebugLoadTheme={loadDebugTheme}/>;
 }
