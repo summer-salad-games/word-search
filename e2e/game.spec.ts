@@ -109,7 +109,7 @@ test("congratulates the player after the final unique grid and resets the whole 
   await page.locator(".puzzle-grid").waitFor();
   await solveCurrentPuzzle(page);
 
-  await expect(page.getByRole("dialog", { name: "You found them all!" })).toContainText("all 499 word-search grids");
+  await expect(page.getByRole("dialog", { name: "You found them all!" })).toContainText("all 500 word-search grids");
   await page.getByRole("button", { name: /Reset and start over/ }).click();
   await expect(page.getByRole("dialog", { name: "You found them all!" })).not.toBeVisible();
   await expect(page.locator(".game-footer")).toContainText("0 attempts");

@@ -3,15 +3,18 @@ import { calculatePuzzleProfile, generateCompletePuzzle } from "../src/app-model
 import { THEME_COUNTS, THEMES, selectRandomTheme } from "../src/themes.js";
 
 describe("theme catalog", () => {
-  it("contains 490 standard themes and 9 rare easter eggs", () => {
-    expect(THEME_COUNTS).toEqual({ common: 490, rare: 9, total: 499 });
-    expect(THEMES).toHaveLength(499);
-    expect(new Set(THEMES.map(({ id }) => id)).size).toBe(499);
+  it("contains 490 standard themes and 10 rare easter eggs", () => {
+    expect(THEME_COUNTS).toEqual({ common: 490, rare: 10, total: 500 });
+    expect(THEMES).toHaveLength(500);
+    expect(new Set(THEMES.map(({ id }) => id)).size).toBe(500);
     expect(THEMES.some(({ id }) => id === "egg-roman")).toBe(false);
     expect(THEMES.every(({ title }) => /^\S+$/u.test(title))).toBe(true);
     const needle = THEMES.find(({ id }) => id === "egg-needle")!;
     expect(needle.words).toEqual([","]);
     expect(needle.fillCharacters).toEqual(["."]);
+    const zero = THEMES.find(({ id }) => id === "egg-zero")!;
+    expect(zero.words).toEqual(["0"]);
+    expect(zero.fillCharacters).toEqual(["O"]);
   });
 
   it("contains valid, unique content in every theme", () => {
