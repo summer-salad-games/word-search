@@ -415,12 +415,12 @@ export default function App() {
       setCompletedThemeIds(completed);
       setLifetimeRecords(persistedHistory);
       try {
-        const theme = active === undefined ? selectRandomTheme(new Set(completed)) : undefined;
+        const theme = active === undefined ? selectRandomTheme(new Set(completed), Math.random, completed.length > 0) : undefined;
         setSession(active ?? createSession(theme ?? selectRandomTheme()!, profileForCurrentScreen()));
       }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     }).catch(() => {
-      try { setSession(createSession(selectRandomTheme()!, profileForCurrentScreen())); }
+      try { setSession(createSession(selectRandomTheme(new Set(), Math.random, false)!, profileForCurrentScreen())); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     });
   }, []);
@@ -440,7 +440,7 @@ export default function App() {
   const resetEverything = useCallback(() => {
     void resetApplicationState().then(() => {
       const mode: ColorMode = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      const fresh = createSession(selectRandomTheme()!, profileForCurrentScreen());
+      const fresh = createSession(selectRandomTheme(new Set(), Math.random, false)!, profileForCurrentScreen());
       setColorMode(mode);
       setCompletedThemeIds([]);
       setLifetimeRecords([]);

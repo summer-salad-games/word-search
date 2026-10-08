@@ -37,6 +37,7 @@ describe("theme catalog", () => {
     expect(standard.rare).not.toBe(true);
     expect(rare.rare).toBe(true);
     expect(boundary.rare).not.toBe(true);
+    expect(selectRandomTheme(new Set(), () => 0, false)?.rare).not.toBe(true);
     expect(selectRandomTheme(new Set([standard.id]), () => 0.5)?.id).not.toBe(standard.id);
   });
 
