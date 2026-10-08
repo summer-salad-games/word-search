@@ -59,6 +59,8 @@ export function gameReducer(session: GameSession, action: GameAction): GameSessi
 export function calculatePuzzleProfile(screenWidth: number, screenHeight: number): PuzzleProfile {
   const width = screenWidth;
   const height = screenHeight;
+  const wordCount = (columns: number, rows: number, minimum: number, maximum: number) =>
+    Math.min(maximum, Math.max(minimum, Math.floor(columns * rows / 8)));
   if (width < 480) {
     const columns = Math.max(5, Math.floor((width - 20 + 4) / 52) - 2);
     const rows = Math.max(8, Math.floor((height - 220 + 4) / 52) - 2);
@@ -68,16 +70,16 @@ export function calculatePuzzleProfile(screenWidth: number, screenHeight: number
       (width - 24) / gridColumns,
       (height - 292) / gridRows,
     ))));
-    return { columns, rows, borderSize: 1, targetWordCount: Math.max(5, Math.floor(columns * rows / 10)), preferredCellSize };
+    return { columns, rows, borderSize: 1, targetWordCount: wordCount(columns, rows, 5, 8), preferredCellSize };
   }
   if (width < 800) {
     const columns = Math.max(8, Math.min(12, Math.floor((width - 32 + 4) / 52) - 2));
     const rows = Math.max(10, Math.min(14, Math.floor((height - 235 + 4) / 52) - 2));
-    return { columns, rows, borderSize: 1, targetWordCount: Math.max(7, Math.floor(columns * rows / 10)), preferredCellSize: 52 };
+    return { columns, rows, borderSize: 1, targetWordCount: wordCount(columns, rows, 8, 12), preferredCellSize: 52 };
   }
   const columns = Math.max(14, Math.min(16, Math.floor((width - 96) / 64) - 2));
   const rows = Math.max(9, Math.min(10, Math.floor((height - 255) / 58) - 2));
-  return { columns, rows, borderSize: 1, targetWordCount: Math.max(10, Math.min(14, Math.floor(columns * rows / 10))), preferredCellSize: 64 };
+  return { columns, rows, borderSize: 1, targetWordCount: wordCount(columns, rows, 12, 16), preferredCellSize: 64 };
 }
 
 function hash(value: string): number {

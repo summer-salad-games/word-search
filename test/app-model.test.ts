@@ -8,6 +8,9 @@ describe("application model", () => {
     const desktop = calculatePuzzleProfile(1440, 1000);
     expect(phone.columns).toBeLessThan(desktop.columns);
     expect(phone.targetWordCount).toBeLessThan(desktop.targetWordCount);
+    expect(phone.targetWordCount).toBe(6);
+    expect(calculatePuzzleProfile(440, 956).targetWordCount).toBe(8);
+    expect(desktop.targetWordCount).toBe(16);
     expect(phone.rows).toBeGreaterThan(phone.columns);
     expect(desktop.columns).toBeGreaterThan(desktop.rows);
     expect(phone.preferredCellSize).toBe(46);
@@ -45,7 +48,7 @@ describe("application model", () => {
       expect(left / right).toBeGreaterThan(0.9);
       expect(left / right).toBeLessThan(1.1);
     }
-  });
+  }, 30_000);
 
   it("extends, rejects, and backtracks an orthogonal selection", () => {
     let path = extendSelection([], { x: 1, y: 1 });

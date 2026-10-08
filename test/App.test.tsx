@@ -18,7 +18,7 @@ describe("App", () => {
   });
 
   it("changes away from a system-dark preference on the first mode click", async () => {
-    Object.defineProperty(window, "matchMedia", { configurable: true, value: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }) });
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: (query: string) => ({ matches: query === "(prefers-color-scheme: dark)", addEventListener() {}, removeEventListener() {} }) });
     const user = userEvent.setup();
     render(<App />);
     await screen.findByRole("heading", { level: 1 });

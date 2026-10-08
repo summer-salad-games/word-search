@@ -414,8 +414,9 @@ export default function App() {
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create the next puzzle."); }
   }, [completedThemeIds]);
 
+  if (mobileLandscape) return <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for portrait play.</span></div>;
   if (error !== undefined) return <main className="loading-screen"><p className="eyebrow">Something went wrong</p><h1>{error}</h1><button className="primary-button" onClick={() => location.reload()}>Try again</button></main>;
   if (session === undefined) return <main className="loading-screen"><div className="loader"/><p>Preparing your puzzle…</p></main>;
   const completedBeforeCurrent = completedThemeIds.filter((id) => id !== session.themeId).length;
-  return <><Game key={session.id} initialSession={session} colorMode={colorMode} isFinalPuzzle={completedBeforeCurrent === THEMES.length - 1} onColorMode={updateMode} onSession={updateSession} onComplete={completePuzzle} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything}/>{mobileLandscape && <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for portrait play.</span></div>}</>;
+  return <Game key={session.id} initialSession={session} colorMode={colorMode} isFinalPuzzle={completedBeforeCurrent === THEMES.length - 1} onColorMode={updateMode} onSession={updateSession} onComplete={completePuzzle} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything}/>;
 }
