@@ -26,45 +26,23 @@ function Icon({ name }: { readonly name: "history" | "reset" | "moon" | "sun" | 
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
 
-function useViewport() {
-  const read = () => ({
-    width: Math.min(window.screen.width || window.innerWidth, window.innerWidth),
-    height: window.screen.height || window.innerHeight,
-  });
-  const [viewport, setViewport] = useState(read);
-  useEffect(() => {
-    const update = () => setViewport(read());
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-  return viewport;
+function profileForCurrentScreen() {
+  return calculatePuzzleProfile(window.screen.width, window.screen.height);
 }
 
 function useMobileLandscape(): boolean {
-  const read = () => {
-    const mobile = navigator.maxTouchPoints > 0 || matchMedia("(pointer: coarse)").matches;
-    const orientation = window.screen.orientation?.type;
-    const mediaLandscape = matchMedia("(orientation: landscape)").matches;
-    const screenLandscape = window.screen.width > window.screen.height;
-    const apiLandscape = orientation?.startsWith("landscape");
-    const landscape = apiLandscape !== undefined && apiLandscape === screenLandscape ? apiLandscape : mediaLandscape;
-    return mobile && landscape;
-  };
-  const [mobileLandscape, setMobileLandscape] = useState(read);
+  const mobile = matchMedia("(pointer: coarse)");
+  const landscape = matchMedia("(orientation: landscape)");
+  const read = () => mobile.matches && landscape.matches;
+  const [isLandscape, setIsLandscape] = useState(read);
   useEffect(() => {
-    const update = () => setMobileLandscape(read());
-    const orientation = window.screen.orientation;
-    const media = matchMedia("(orientation: landscape)");
-    orientation?.addEventListener("change", update);
-    media.addEventListener("change", update);
-    window.addEventListener("resize", update);
+    const update = () => setIsLandscape(read());
+    landscape.addEventListener("change", update);
     return () => {
-      orientation?.removeEventListener("change", update);
-      media.removeEventListener("change", update);
-      window.removeEventListener("resize", update);
+      landscape.removeEventListener("change", update);
     };
   }, []);
-  return mobileLandscape;
+  return isLandscape;
 }
 
 function useGameTimer(session: GameSession, paused: boolean, onElapsed: (value: number) => void) {
@@ -350,7 +328,7 @@ function Game({ initialSession, colorMode, isFinalPuzzle, onColorMode, onSession
   };
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell${session.profile.columns < 8 ? " mobile-layout" : ""}`}>
       <header className="topbar"><div><p className="eyebrow">Word search</p><h1>{theme.title}</h1></div><div className="topbar-actions"><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
       <div className="puzzle-content">
         <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
@@ -371,7 +349,6 @@ function Game({ initialSession, colorMode, isFinalPuzzle, onColorMode, onSession
 }
 
 export default function App() {
-  const viewport = useViewport();
   const mobileLandscape = useMobileLandscape();
   const [session, setSession] = useState<GameSession>();
   const [colorMode, setColorMode] = useState<ColorMode>("system");
@@ -381,18 +358,17 @@ export default function App() {
   useEffect(() => {
     void Promise.all([loadActiveGame(), loadColorMode(), loadCompletedThemeIds()]).then(([active, mode, persistedCompleted]) => {
       const resolvedMode = mode === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode;
-      const profile = calculatePuzzleProfile(viewport.width, viewport.height);
       const knownIds = new Set(THEMES.map((theme) => theme.id));
       const completed = persistedCompleted.filter((id) => knownIds.has(id));
       setColorMode(resolvedMode);
       setCompletedThemeIds(completed);
       try {
         const theme = active === undefined ? selectRandomTheme(new Set(completed)) : undefined;
-        setSession(active ?? createSession(theme ?? selectRandomTheme()!, profile));
+        setSession(active ?? createSession(theme ?? selectRandomTheme()!, profileForCurrentScreen()));
       }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     }).catch(() => {
-      try { setSession(createSession(selectRandomTheme()!, calculatePuzzleProfile(viewport.width, viewport.height))); }
+      try { setSession(createSession(selectRandomTheme()!, profileForCurrentScreen())); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     });
   }, []);
@@ -412,13 +388,13 @@ export default function App() {
   const resetEverything = useCallback(() => {
     void resetApplicationState().then(() => {
       const mode: ColorMode = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      const fresh = createSession(selectRandomTheme()!, calculatePuzzleProfile(viewport.width, viewport.height));
+      const fresh = createSession(selectRandomTheme()!, profileForCurrentScreen());
       setColorMode(mode);
       setCompletedThemeIds([]);
       setSession(fresh);
       void saveActiveGame(fresh);
     }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not reset the application."));
-  }, [viewport.height, viewport.width]);
+  }, []);
   const completePuzzle = useCallback((completed: GameSession) => {
     if (completed.completedAt === undefined) return;
     setCompletedThemeIds((current) => current.includes(completed.themeId) ? current : [...current, completed.themeId]);
@@ -432,10 +408,10 @@ export default function App() {
     const nextTheme = selectRandomTheme(completed);
     try {
       if (nextTheme === undefined) throw new Error("All puzzles have already been completed.");
-      const next = createSession(nextTheme, calculatePuzzleProfile(viewport.width, viewport.height));
+      const next = createSession(nextTheme, profileForCurrentScreen());
       setSession(next); void clearActiveGame().then(() => saveActiveGame(next));
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create the next puzzle."); }
-  }, [completedThemeIds, viewport.height, viewport.width]);
+  }, [completedThemeIds]);
 
   if (error !== undefined) return <main className="loading-screen"><p className="eyebrow">Something went wrong</p><h1>{error}</h1><button className="primary-button" onClick={() => location.reload()}>Try again</button></main>;
   if (session === undefined) return <main className="loading-screen"><div className="loader"/><p>Preparing your puzzle…</p></main>;

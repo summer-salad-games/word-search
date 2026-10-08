@@ -131,14 +131,12 @@ dd { margin: 0; font-weight: 720; font-variant-numeric: tabular-nums; }
 @keyframes dialog-in { from { opacity: 0; transform: translateY(12px) scale(.97); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-@media (max-width: 479px) {
-  .app-shell { padding-inline: 12px; gap: 10px; }
-  .icon-button { width: 38px; height: 38px; }
-  .timer { min-width: 3.8rem; font-size: .86rem; }
-  .word-chip { padding: 5px 8px; }
-  .puzzle-content { align-self: center; grid-template-rows: auto auto; gap: 9px; width: 100%; }
-  .puzzle-grid { width: 100%; height: auto; max-width: calc(100vw - 24px); }
-}
+.app-shell.mobile-layout { padding-inline: 12px; gap: 10px; }
+.mobile-layout .icon-button { width: 38px; height: 38px; }
+.mobile-layout .timer { min-width: 3.8rem; font-size: .86rem; }
+.mobile-layout .word-chip { padding: 5px 8px; }
+.mobile-layout .puzzle-content { align-self: center; grid-template-rows: auto auto; gap: 9px; width: 100%; }
+.mobile-layout .puzzle-grid { width: 100%; height: auto; max-width: calc(100vw - 24px); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }

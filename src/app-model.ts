@@ -56,9 +56,9 @@ export function gameReducer(session: GameSession, action: GameAction): GameSessi
   };
 }
 
-export function calculatePuzzleProfile(viewportWidth: number, viewportHeight: number): PuzzleProfile {
-  const width = Math.max(280, viewportWidth);
-  const height = Math.max(480, viewportHeight);
+export function calculatePuzzleProfile(screenWidth: number, screenHeight: number): PuzzleProfile {
+  const width = screenWidth;
+  const height = screenHeight;
   if (width < 480) {
     const columns = Math.max(5, Math.floor((width - 20 + 4) / 52) - 2);
     const rows = Math.max(8, Math.floor((height - 220 + 4) / 52) - 2);
