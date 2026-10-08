@@ -75,6 +75,7 @@ test("solves a one-cell easter egg", async ({ page }) => {
   });
   await page.reload();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Needle");
+  await expect(page.locator(".word-chip")).toHaveText(",");
   await solveCurrentPuzzle(page);
   await expect(page.getByRole("dialog", { name: "Nicely found." })).toBeVisible();
 });

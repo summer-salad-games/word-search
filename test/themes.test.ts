@@ -8,6 +8,9 @@ describe("theme catalog", () => {
     expect(THEMES).toHaveLength(500);
     expect(new Set(THEMES.map(({ id }) => id)).size).toBe(500);
     expect(THEMES.every(({ title }) => /^\S+$/u.test(title))).toBe(true);
+    const needle = THEMES.find(({ id }) => id === "egg-needle")!;
+    expect(needle.words).toEqual([","]);
+    expect(needle.fillCharacters).toEqual(["."]);
   });
 
   it("contains valid, unique content in every theme", () => {

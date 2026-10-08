@@ -56,7 +56,7 @@ const rare = (id: string, title: string, words: string, fillCharacters: string):
 });
 
 const RARE_THEMES: readonly PuzzleTheme[] = Object.freeze([
-  rare("needle", "Needle", "a", "."),
+  rare("needle", "Needle", ",", "."),
   rare("emoji", "Emoji", "😀 😃 😄 😁 😆 😅 😂 😊 😇 🙂 🙃 😉 😌 😍 😎 🤓 🥳 🤩 😴 🤖 👻 👽 🎃 🐵 🦊 🐼 🐸 🐙 🐳 🦋", "🍎 🍋 🍉 🍇 🍓 🍒 🥝 🥕 🌽 🍄 🌵 🌻 🌙 ⭐ ☀ ⚡ ❄ ☁ ☂ ⚽ 🎲 🚗 🚀 ✈ ⌛ ⏰ 🔑 💎 🎁"),
   rare("morse", "Morse", "a·− b−··· c−·−· d−·· e· f··−· g−−· h···· i·· j·−−− k−·− l·−·· m−− n−· o−−− p·−−· q−−·− r·−· s··· t− u··− v···− w·−− x−··− y−·−− z−−··", "○ ● ◦ •"),
   rare("arrows", "Arrows", "↑ → ↓ ← ↖ ↗ ↘ ↙ ↔ ↕ ↜ ↝ ↞ ↟ ↠ ↡ ↢ ↣ ↤ ↥ ↦ ↧ ⇐ ⇑ ⇒ ⇓ ⇔ ⇕", "⇖ ⇗ ⇘ ⇙ ➔ ➜ ➝ ➞"),
