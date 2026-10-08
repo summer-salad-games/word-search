@@ -136,7 +136,10 @@ dd { margin: 0; font-weight: 720; font-variant-numeric: tabular-nums; }
 .mobile-layout .timer { min-width: 3.8rem; font-size: .86rem; }
 .mobile-layout .word-chip { padding: 5px 8px; }
 .mobile-layout .puzzle-content { align-self: center; grid-template-rows: auto auto; gap: 9px; width: 100%; }
-.mobile-layout .puzzle-grid { width: 100%; height: auto; max-width: calc(100vw - 24px); }
+.mobile-layout .puzzle-grid {
+  width: min(100%, var(--preferred-grid-width));
+  height: auto;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }

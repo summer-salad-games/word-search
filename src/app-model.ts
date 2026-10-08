@@ -62,7 +62,13 @@ export function calculatePuzzleProfile(screenWidth: number, screenHeight: number
   if (width < 480) {
     const columns = Math.max(5, Math.floor((width - 20 + 4) / 52) - 2);
     const rows = Math.max(8, Math.floor((height - 220 + 4) / 52) - 2);
-    return { columns, rows, borderSize: 1, targetWordCount: Math.max(5, Math.floor(columns * rows / 10)), preferredCellSize: 52 };
+    const gridColumns = columns + 2;
+    const gridRows = rows + 2;
+    const preferredCellSize = Math.max(42, Math.min(52, Math.floor(Math.min(
+      (width - 24) / gridColumns,
+      (height - 292) / gridRows,
+    ))));
+    return { columns, rows, borderSize: 1, targetWordCount: Math.max(5, Math.floor(columns * rows / 10)), preferredCellSize };
   }
   if (width < 800) {
     const columns = Math.max(8, Math.min(12, Math.floor((width - 32 + 4) / 52) - 2));

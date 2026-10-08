@@ -10,6 +10,10 @@ describe("application model", () => {
     expect(phone.targetWordCount).toBeLessThan(desktop.targetWordCount);
     expect(phone.rows).toBeGreaterThan(phone.columns);
     expect(desktop.columns).toBeGreaterThan(desktop.rows);
+    expect(phone.preferredCellSize).toBe(46);
+    expect(calculatePuzzleProfile(440, 956).preferredCellSize).toBeGreaterThan(phone.preferredCellSize);
+    expect(calculatePuzzleProfile(440, 956).preferredCellSize).toBeLessThanOrEqual(52);
+    expect(desktop.preferredCellSize).toBe(64);
   });
 
   it("only returns a puzzle after every listed target was placed", () => {
