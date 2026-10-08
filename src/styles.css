@@ -96,6 +96,10 @@ button { font: inherit; }
 .dialog h2 { margin: 4px 0 0; font-size: 2rem; letter-spacing: -.04em; }
 .dialog-copy { margin: 16px 0 0; color: var(--muted); line-height: 1.55; }
 .reset-actions { display: grid; gap: 10px; margin-top: 26px; }
+.history-summary { margin-top: 24px; padding: 16px; border-radius: 16px; background: var(--surface-soft); }
+.history-summary dl { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 12px 0 0; }
+.history-summary dl div { display: grid; gap: 3px; }
+.history-summary dd { font-size: 1.15rem; }
 .history-list { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 10px; }
 .history-list li { padding: 15px; border: 1px solid var(--line); border-radius: 14px; }
 .history-list li > div { display: flex; justify-content: space-between; gap: 12px; }

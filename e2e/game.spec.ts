@@ -45,12 +45,18 @@ test("plays a complete puzzle and persists it to history", async ({ page }) => {
   const heading = page.getByRole("heading", { level: 1 });
   await expect(heading).toBeVisible();
   const themeTitle = (await heading.textContent())!;
+  const wordCount = await page.locator(".word-chip").count();
   await solveCurrentPuzzle(page);
   await expect(page.getByRole("dialog", { name: "Nicely found." })).toBeVisible();
   await page.getByRole("button", { name: /Next puzzle/ }).click();
   await expect(heading).not.toHaveText(themeTitle);
   await page.getByRole("button", { name: "Open history" }).click();
-  await expect(page.getByRole("dialog", { name: "History" })).toContainText(themeTitle);
+  const history = page.getByRole("dialog", { name: "History" });
+  await expect(history).toContainText(themeTitle);
+  const progress = page.getByRole("region", { name: "Global progress" });
+  await expect(progress).toContainText("Puzzles1");
+  await expect(progress).toContainText(`Words found${wordCount}`);
+  await expect(progress).toContainText(`Attempts${wordCount}`);
 });
 
 test("solves a one-cell easter egg", async ({ page }) => {

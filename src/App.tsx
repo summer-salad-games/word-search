@@ -220,10 +220,24 @@ function PuzzleGrid({ session, colors, onAttempt, attemptColor, debugWords }: Gr
 }
 
 function HistoryDialog({ records, onClose }: { readonly records: readonly HistoryRecord[]; readonly onClose: () => void }) {
+  const totals = records.reduce((result, record) => ({
+    elapsedMs: result.elapsedMs + record.elapsedMs,
+    words: result.words + record.wordCount,
+    attempts: result.attempts + record.attempts,
+  }), { elapsedMs: 0, words: 0, attempts: 0 });
   return (
     <div className="overlay" role="presentation">
       <section className="dialog history-dialog" role="dialog" aria-modal="true" aria-labelledby="history-title">
         <header><div><p className="eyebrow">Your journey</p><h2 id="history-title">History</h2></div><button className="icon-button" onClick={onClose} aria-label="Close history"><Icon name="close" /></button></header>
+        <section className="history-summary" aria-label="Global progress">
+          <p className="eyebrow">Global progress</p>
+          <dl>
+            <div><dt>Puzzles</dt><dd>{records.length}</dd></div>
+            <div><dt>Total time</dt><dd>{formatDuration(totals.elapsedMs)}</dd></div>
+            <div><dt>Words found</dt><dd>{totals.words}</dd></div>
+            <div><dt>Attempts</dt><dd>{totals.attempts}</dd></div>
+          </dl>
+        </section>
         {records.length === 0 ? <p className="empty-state">Complete a puzzle and it will appear here.</p> : (
           <ol className="history-list">{records.map((record) => (
             <li key={record.id}>
