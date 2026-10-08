@@ -1,7 +1,7 @@
 import { Direction, generatePuzzle, PuzzleGenerationError, type Position, type PuzzleResult } from "./index.js";
 import type { PuzzleTheme } from "./themes.js";
 
-export const GENERATOR_VERSION = 4;
+export const GENERATOR_VERSION = 5;
 
 function randomId(): string {
   if (typeof globalThis.crypto.randomUUID === "function") return globalThis.crypto.randomUUID();
@@ -120,6 +120,10 @@ export function generateCompletePuzzle(theme: PuzzleTheme, profile: PuzzleProfil
             wordsIntersect: false,
             useBacktracking: true,
             fillPercentage: 1,
+            ...(theme.fillCharacters === undefined ? {} : {
+              fillLetters: theme.fillCharacters,
+              restrictedFillLetters: [],
+            }),
           },
         });
         if (puzzle.unplacedWords.length === 0) return { puzzle, targetWords };

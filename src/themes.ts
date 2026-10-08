@@ -5,6 +5,7 @@ export interface PuzzleTheme {
   readonly title: string;
   readonly words: readonly string[];
   readonly colors: readonly string[];
+  readonly fillCharacters?: readonly string[];
   readonly rare?: boolean;
 }
 
@@ -45,25 +46,26 @@ const STANDARD_THEMES: readonly PuzzleTheme[] = THEME_BANKS.flatMap((bank, bankI
   }),
 );
 
-const rare = (id: string, title: string, words: string): PuzzleTheme => Object.freeze({
+const rare = (id: string, title: string, words: string, fillCharacters: string): PuzzleTheme => Object.freeze({
   id: `egg-${id}`,
   title,
   words: Object.freeze(words.trim().split(/\s+/u)),
   colors: PALETTES[hash(id) % PALETTES.length]!,
+  fillCharacters: Object.freeze(fillCharacters.trim().split(/\s+/u)),
   rare: true,
 });
 
 const RARE_THEMES: readonly PuzzleTheme[] = Object.freeze([
-  rare("emoji", "Emoji", "😀 😃 😄 😁 😆 😅 😂 😊 😇 🙂 🙃 😉 😌 😍 🥰 😎 🤓 🥳 🤩 😴 🤖 👻 👽 🎃 🐵 🦊 🐼 🦄 🐸"),
-  rare("morse", "Morse", "a·− b−··· c−·−· d−·· e· f··−· g−−· h···· i·· j·−−− k−·− l·−·· m−− n−· o−−− p·−−· q−−·− r·−· s··· t− u··− v···− w·−− x−··− y−·−− z−−··"),
-  rare("points", "Symbols", "! ? . , : ; + - = / \\ | _ ~ ^ # @ $ % & * < > ( ) [ ] { }"),
-  rare("palindrome", "Palindromes", "level radar civic rotor kayak refer madam racecar noon tenet stats solos minim reviver repaper deified rotator wow mom dad eye peep toot pop gig"),
-  rare("keyboard", "Keyboard", "qwerty asdf zxcv hjkl uiop qaz wsx edc rfv tgb yhn ujm ikol shift enter escape tab space caps ctrl alt delete home end insert pageup pagedown cursor"),
-  rare("found", "Found", "found hidden secret spotted revealed uncovered located discovered noticed solved search seek clue trail answer surprise reward treasure easter egg inside between beneath beyond almost there congratulations"),
-  rare("error", "Glitch", "error warning missing unknown retry reboot loading offline online cache cookie server client request response status timeout redirect broken fixed debug trace stack console network protocol packet glitch feature unexpected"),
-  rare("greek", "Greek", "α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ τ υ φ χ ψ ω"),
-  rare("developer", "Developer", "console debug breakpoint variable function object array string boolean promise async await return import export render state effect event pointer cache storage database browser commit branch merge test build deploy localhost"),
-  rare("magic", "Spellbook", "abracadabra alakazam hocus pocus shimmer sparkle whisper moonbeam stardust enchant charm potion crystal oracle rune wand cauldron phantom dragon phoenix unicorn wizard secret hidden mystery wonder"),
+  rare("needle", "Needle", "a", "."),
+  rare("emoji", "Emoji", "😀 😃 😄 😁 😆 😅 😂 😊 😇 🙂 🙃 😉 😌 😍 😎 🤓 🥳 🤩 😴 🤖 👻 👽 🎃 🐵 🦊 🐼 🐸 🐙 🐳 🦋", "🍎 🍋 🍉 🍇 🍓 🍒 🥝 🥕 🌽 🍄 🌵 🌻 🌙 ⭐ ☀ ⚡ ❄ ☁ ☂ ⚽ 🎲 🚗 🚀 ✈ ⌛ ⏰ 🔑 💎 🎁"),
+  rare("morse", "Morse", "a·− b−··· c−·−· d−·· e· f··−· g−−· h···· i·· j·−−− k−·− l·−·· m−− n−· o−−− p·−−· q−−·− r·−· s··· t− u··− v···− w·−− x−··− y−·−− z−−··", "○ ● ◦ •"),
+  rare("arrows", "Arrows", "↑ → ↓ ← ↖ ↗ ↘ ↙ ↔ ↕ ↜ ↝ ↞ ↟ ↠ ↡ ↢ ↣ ↤ ↥ ↦ ↧ ⇐ ⇑ ⇒ ⇓ ⇔ ⇕", "⇖ ⇗ ⇘ ⇙ ➔ ➜ ➝ ➞"),
+  rare("music", "Music", "♩ ♪ ♫ ♬ ♭ ♮ ♯", "• ◦ · ○"),
+  rare("braille", "Braille", "⠁ ⠃ ⠉ ⠙ ⠑ ⠋ ⠛ ⠓ ⠊ ⠚ ⠅ ⠇ ⠍ ⠝ ⠕ ⠏ ⠟ ⠗ ⠎ ⠞ ⠥ ⠧ ⠺ ⠭ ⠽ ⠵", "⡀ ⡄ ⡆ ⡇ ⣀ ⣄ ⣆ ⣇ ⣿"),
+  rare("roman", "Roman", "Ⅰ Ⅱ Ⅲ Ⅳ Ⅴ Ⅵ Ⅶ Ⅷ Ⅸ Ⅹ Ⅺ Ⅻ Ⅼ Ⅽ Ⅾ Ⅿ", "· • ○ ◦"),
+  rare("greek", "Greek", "άλφα βήτα γάμμα δέλτα κόσμος μύθος ήλιος σελήνη άστρο γη νερό φωτιά αέρας σοφία νίκη αρμονία μουσική ποίηση θέατρο όνειρο φως χρόνος ψυχή", "α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ τ υ φ χ ψ ω"),
+  rare("glitch", "Glitch", "err0r gl1tch 0ffline rebo0t c4che c00kie serv3r cl1ent requ3st resp0nse t1meout red1rect br0ken f1xed d3bug tr4ce st4ck c0nsole netw0rk pr0tocol p4cket fe4ture", "# @ % &"),
+  rare("palindrome", "Palindrome", "level radar civic rotor kayak refer madam racecar noon tenet stats solos minim reviver repaper deified rotator wow mom dad eye peep toot pop gig", "a e i o u y"),
 ]);
 
 export const THEMES: readonly PuzzleTheme[] = Object.freeze([...STANDARD_THEMES, ...RARE_THEMES]);
@@ -72,7 +74,7 @@ export function selectRandomTheme(completedIds: ReadonlySet<string> = new Set(),
   const standard = STANDARD_THEMES.filter((theme) => !completedIds.has(theme.id));
   const rare = RARE_THEMES.filter((theme) => !completedIds.has(theme.id));
   if (standard.length === 0 && rare.length === 0) return undefined;
-  const preferRare = random() < 0.02;
+  const preferRare = random() < 0.05;
   const pool = preferRare
     ? (rare.length > 0 ? rare : standard)
     : (standard.length > 0 ? standard : rare);

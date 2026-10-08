@@ -32,7 +32,7 @@ async function solveCurrentPuzzle(page: import("@playwright/test").Page) {
     for (const box of boxes.slice(1)) await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2, { steps: 2 });
     await page.mouse.up();
     await expect(chips.nth(wordIndex)).toHaveClass(/is-solved/);
-    if (wordIndex === 0) {
+    if (wordIndex === 0 && words.length > 1) {
       await page.mouse.click(first!.x + first!.width / 2, first!.y + first!.height / 2);
       await expect(page.locator(".puzzle-cell.is-active")).toHaveCount(0);
       await expect(page.locator(".game-footer")).toContainText("1 attempts");
@@ -51,6 +51,32 @@ test("plays a complete puzzle and persists it to history", async ({ page }) => {
   await expect(heading).not.toHaveText(themeTitle);
   await page.getByRole("button", { name: "Open history" }).click();
   await expect(page.getByRole("dialog", { name: "History" })).toContainText(themeTitle);
+});
+
+test("solves a one-cell easter egg", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".puzzle-grid").waitFor();
+  await page.evaluate(async () => {
+    const [{ calculatePuzzleProfile, createSession, GENERATOR_VERSION }, { THEMES }] = await Promise.all([
+      import("/src/app-model.ts"),
+      import("/src/themes.ts"),
+    ]);
+    const theme = THEMES.find(({ id }) => id === "egg-needle")!;
+    const session = createSession(theme, calculatePuzzleProfile(390, 844), "needle-e2e");
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction("state", "readwrite");
+      transaction.objectStore("state").put({ generatorVersion: GENERATOR_VERSION, session }, "active-game");
+      transaction.oncomplete = () => resolve(); transaction.onerror = () => reject(transaction.error);
+    });
+    db.close();
+  });
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Needle");
+  await solveCurrentPuzzle(page);
+  await expect(page.getByRole("dialog", { name: "Nicely found." })).toBeVisible();
 });
 
 test("congratulates the player after the final unique grid and resets the whole playthrough", async ({ page }) => {

@@ -92,6 +92,7 @@ interface GridProps {
 function PuzzleGrid({ session, colors, onAttempt, attemptColor, debugWords }: GridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const pointerId = useRef<number | null>(null);
+  const selectionRef = useRef<Position[]>([]);
   const [selection, setSelection] = useState<Position[]>([]);
   const [selectionColor, setSelectionColor] = useState<string>();
   const [rejectingCell, setRejectingCell] = useState<string>();
@@ -108,7 +109,11 @@ function PuzzleGrid({ session, colors, onAttempt, attemptColor, debugWords }: Gr
   }, [colors, session.puzzle.entries, session.solvedColors, session.solvedWords]);
 
   const addCell = useCallback((position: Position) => {
-    if (!locked && !solvedCells.has(positionKey(position))) setSelection((current) => extendSelection(current, position));
+    if (!locked && !solvedCells.has(positionKey(position))) setSelection((current) => {
+      const next = extendSelection(current, position);
+      selectionRef.current = next;
+      return next;
+    });
   }, [locked, solvedCells]);
 
   const positionFromPointer = (event: PointerEvent<HTMLDivElement>): Position | undefined => {
@@ -126,6 +131,7 @@ function PuzzleGrid({ session, colors, onAttempt, attemptColor, debugWords }: Gr
       const last = remaining[remaining.length - 1];
       if (last === undefined) {
         setRejectingCell(undefined);
+        selectionRef.current = [];
         setSelection([]);
         setSelectionColor(undefined);
         setLocked(false);
@@ -134,6 +140,7 @@ function PuzzleGrid({ session, colors, onAttempt, attemptColor, debugWords }: Gr
       setRejectingCell(positionKey(last));
       window.setTimeout(() => {
         remaining.pop();
+        selectionRef.current = remaining;
         setSelection([...remaining]);
         window.setTimeout(step, 32);
       }, 58);
@@ -145,12 +152,13 @@ function PuzzleGrid({ session, colors, onAttempt, attemptColor, debugWords }: Gr
     if (pointerId.current === null || locked) return;
     if (gridRef.current?.hasPointerCapture(pointerId.current)) gridRef.current.releasePointerCapture(pointerId.current);
     pointerId.current = null;
-    if (selection.length === 0) return;
-    const found = onAttempt(selection);
-    if (found === undefined) rollback(selection);
+    const path = selectionRef.current;
+    if (path.length === 0) return;
+    const found = onAttempt(path);
+    if (found === undefined) rollback(path);
     else {
       setLocked(true);
-      window.setTimeout(() => { setSelection([]); setSelectionColor(undefined); setLocked(false); }, 280);
+      window.setTimeout(() => { selectionRef.current = []; setSelection([]); setSelectionColor(undefined); setLocked(false); }, 280);
     }
   };
 
@@ -176,7 +184,8 @@ function PuzzleGrid({ session, colors, onAttempt, attemptColor, debugWords }: Gr
         pointerId.current = event.pointerId;
         event.currentTarget.setPointerCapture(event.pointerId);
         setSelectionColor(attemptColor);
-        setSelection([position]);
+        selectionRef.current = [position];
+        setSelection(selectionRef.current);
       }}
       onPointerMove={(event) => {
         if (pointerId.current !== event.pointerId || locked) return;
