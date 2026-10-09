@@ -5,6 +5,8 @@ import { getTheme, selectRandomTheme, THEMES } from "./themes.js";
 import type { Position, PuzzleCell } from "./types.js";
 import "./styles.css";
 
+const APP_VERSION = "1.0.0";
+
 interface WordSearchDebugApi {
   highlightWords(): void;
   hideWords(): void;
@@ -379,7 +381,7 @@ function Game({ initialSession, colorMode, isFinalPuzzle, completedCount, lifeti
 
   return (
     <main className={`app-shell${session.profile.columns < 8 ? " mobile-layout" : ""}`}>
-      <header className="topbar"><div><p className="eyebrow">Word search</p><h1>{theme.title}</h1></div><div className="topbar-actions"><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
+      <header className="topbar"><div><p className="eyebrow game-label"><span>Word search</span><span className="version-tag">{APP_VERSION}</span></p><h1>{theme.title}</h1></div><div className="topbar-actions"><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
       <div className="puzzle-content">
         <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
           const solved = session.solvedWords.includes(word);
