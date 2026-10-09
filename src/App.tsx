@@ -248,14 +248,14 @@ function HistoryDialog({ records, completedCount, onClose }: { readonly records:
             <div><dt>Progress</dt><dd>{completedCount} / {THEMES.length}</dd></div>
             <div><dt>Total time</dt><dd>{formatDuration(totals.elapsedMs)}</dd></div>
             <div><dt>Words found</dt><dd>{totals.words}</dd></div>
-            <div><dt>Letters selected</dt><dd>{totals.lettersSelected}</dd></div>
+            <div><dt>Letters</dt><dd>{totals.lettersSelected}</dd></div>
           </dl>
         </section>
         {records.length === 0 ? <p className="empty-state">Complete a puzzle and it will appear here.</p> : (
           <ol className="history-list">{records.map((record) => (
             <li key={record.id}>
               <div><strong>{record.themeTitle}</strong><span>{new Date(record.completedAt).toLocaleDateString()}</span></div>
-              <dl><div><dt>Time</dt><dd>{formatDuration(record.elapsedMs)}</dd></div><div><dt>Words</dt><dd>{record.wordCount}</dd></div><div><dt>Letters selected</dt><dd>{record.lettersSelected}</dd></div></dl>
+              <dl><div><dt>Time</dt><dd>{formatDuration(record.elapsedMs)}</dd></div><div><dt>Words</dt><dd>{record.wordCount}</dd></div><div><dt>Letters</dt><dd>{record.lettersSelected}</dd></div></dl>
             </li>
           ))}</ol>
         )}
@@ -270,7 +270,7 @@ function WinDialog({ session, onNext }: { readonly session: GameSession; readonl
     <div className="overlay celebration" role="presentation">
       <section className="dialog win-dialog" role="dialog" aria-modal="true" aria-labelledby="win-title">
         <div className="win-mark">✓</div><p className="eyebrow">Puzzle complete</p><h2 id="win-title">Nicely found.</h2><p className="win-theme">{theme.title}</p>
-        <dl className="stats"><div><dt>Time</dt><dd>{formatDuration(session.elapsedMs)}</dd></div><div><dt>Words</dt><dd>{session.targetWords.length}</dd></div><div><dt>Letters selected</dt><dd>{session.lettersSelected}</dd></div></dl>
+        <dl className="stats"><div><dt>Time</dt><dd>{formatDuration(session.elapsedMs)}</dd></div><div><dt>Words</dt><dd>{session.targetWords.length}</dd></div><div><dt>Letters</dt><dd>{session.lettersSelected}</dd></div></dl>
         <button className="primary-button" onClick={onNext}>Next puzzle <span aria-hidden="true">→</span></button>
       </section>
     </div>
@@ -291,7 +291,7 @@ function CollectionCompleteDialog({ session, records, onReset }: { readonly sess
             <div><dt>Puzzles</dt><dd>{completeRecords.length}</dd></div>
             <div><dt>Total time</dt><dd>{formatDuration(totals.elapsedMs)}</dd></div>
             <div><dt>Words found</dt><dd>{totals.words}</dd></div>
-            <div><dt>Letters selected</dt><dd>{totals.lettersSelected}</dd></div>
+            <div><dt>Letters</dt><dd>{totals.lettersSelected}</dd></div>
           </dl>
         </section>
         <p className="dialog-copy">Reset everything to clear this summary, your history, preferences, and all progress before starting over.</p>

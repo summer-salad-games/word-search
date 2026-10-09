@@ -56,7 +56,7 @@ test("plays a complete puzzle and persists it to history", async ({ page }) => {
   const progress = page.getByRole("region", { name: "Global progress" });
   await expect(progress).toContainText("Progress1 / 500");
   await expect(progress).toContainText(`Words found${wordCount}`);
-  await expect(progress).toContainText(`Letters selected${lettersSelected}`);
+  await expect(progress).toContainText(`Letters${lettersSelected}`);
   await expect(history).not.toContainText("Attempts");
 });
 
@@ -93,7 +93,7 @@ test("congratulates the player after the final unique grid and resets the whole 
   const lifetime = page.getByRole("region", { name: "Lifetime summary" });
   await expect(lifetime).toContainText("Puzzles1");
   await expect(lifetime).toContainText(/Words found\d+/);
-  await expect(lifetime).toContainText(/Letters selected\d+/);
+  await expect(lifetime).toContainText(/Letters\d+/);
   await page.getByRole("button", { name: /Reset everything/ }).click();
   await expect(page.getByRole("dialog", { name: "You found them all!" })).not.toBeVisible();
   await expect(page.locator(".game-footer")).toContainText("00:00");
