@@ -206,6 +206,55 @@ test("fits a large iPhone when Safari exposes less height than the physical scre
   await context.close();
 });
 
+test("scrolls every history entry into view on a short phone", async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: 375, height: 667 },
+    screen: { width: 375, height: 667 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  await page.locator(".puzzle-grid").waitFor();
+  await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    const transaction = db.transaction("history", "readwrite");
+    for (let index = 0; index < 3; index += 1) {
+      transaction.objectStore("history").put({
+        id: `history-scroll-${index}`,
+        themeId: `theme-${index}`,
+        themeTitle: `Theme ${index + 1}`,
+        seed: `seed-${index}`,
+        elapsedMs: 60_000,
+        wordCount: 8,
+        lettersSelected: 64,
+        completedAt: new Date(Date.UTC(2026, 0, index + 1)).toISOString(),
+        profile: { columns: 5, rows: 8, borderSize: 1, targetWordCount: 5, preferredCellSize: 42 },
+        generatorVersion: 5,
+      });
+    }
+    await new Promise<void>((resolve, reject) => {
+      transaction.oncomplete = () => resolve(); transaction.onerror = () => reject(transaction.error);
+    });
+    db.close();
+  });
+  await page.getByRole("button", { name: "Open history" }).click();
+  const dialog = page.getByRole("dialog", { name: "History" });
+  const lastEntry = page.locator(".history-list li").last();
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  await dialog.hover();
+  await page.mouse.wheel(0, 1_000);
+  await expect.poll(async () => {
+    const dialogBox = await dialog.boundingBox();
+    const entryBox = await lastEntry.boundingBox();
+    return dialogBox !== null && entryBox !== null && entryBox.y + entryBox.height <= dialogBox.y + dialogBox.height + 1;
+  }).toBe(true);
+  await context.close();
+});
+
 test("uses the screen only at creation and keeps a resumed board unchanged", async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, screen: { width: 1440, height: 1000 } });
   const page = await context.newPage();

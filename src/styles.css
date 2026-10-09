@@ -92,8 +92,8 @@ button { font: inherit; }
 .puzzle-cell.is-debug { color: var(--debug-text); background: var(--debug-cell); border-color: var(--debug-cell); }
 
 .game-footer { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: .76rem; font-weight: 650; letter-spacing: .04em; }
-.overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgb(10 10 10 / .48); backdrop-filter: blur(8px); animation: fade-in 180ms ease; }
-.dialog { width: min(100%, 520px); max-height: min(82dvh, 720px); padding: clamp(22px, 5vw, 36px); overflow: auto; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); box-shadow: var(--shadow); animation: dialog-in 260ms cubic-bezier(.2,.8,.2,1); }
+.overlay { position: fixed; inset: 0; z-index: 20; min-height: 0; display: grid; place-items: center; padding: 20px; background: rgb(10 10 10 / .48); backdrop-filter: blur(8px); animation: fade-in 180ms ease; }
+.dialog { width: min(100%, 520px); min-height: 0; max-height: min(82dvh, 720px); padding: clamp(22px, 5vw, 36px); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); box-shadow: var(--shadow); animation: dialog-in 260ms cubic-bezier(.2,.8,.2,1); -webkit-overflow-scrolling: touch; }
 .dialog header { display: flex; align-items: start; justify-content: space-between; }
 .dialog h2 { margin: 4px 0 0; font-size: 2rem; letter-spacing: -.04em; }
 .dialog-copy { margin: 16px 0 0; color: var(--muted); line-height: 1.55; }
