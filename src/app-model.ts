@@ -185,3 +185,20 @@ export function formatDuration(milliseconds: number): string {
   const minutes = Math.floor(seconds / 60);
   return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
+
+export function formatCount(value: number): string {
+  const units = [
+    { threshold: 1_000_000_000_000, suffix: "T" },
+    { threshold: 1_000_000_000, suffix: "B" },
+    { threshold: 1_000_000, suffix: "M" },
+    { threshold: 1_000, suffix: "K" },
+  ] as const;
+  for (const [index, unit] of units.entries()) {
+    if (value < unit.threshold) continue;
+    const scaled = value / unit.threshold;
+    const rounded = scaled < 10 ? Math.round(scaled * 10) / 10 : Math.round(scaled);
+    if (rounded === 1_000 && index > 0) return `1${units[index - 1]!.suffix}`;
+    return `${rounded}${unit.suffix}`;
+  }
+  return String(Math.round(value));
+}

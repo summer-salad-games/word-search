@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
-import { calculatePuzzleProfile, createSession, extendSelection, formatDuration, gameReducer, pathsMatch, positionKey, resetSession, GENERATOR_VERSION, type GameSession } from "./app-model.js";
+import { calculatePuzzleProfile, createSession, extendSelection, formatCount, formatDuration, gameReducer, pathsMatch, positionKey, resetSession, GENERATOR_VERSION, type GameSession } from "./app-model.js";
 import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, type ColorMode, type HistoryRecord } from "./persistence.js";
 import { getTheme, selectRandomTheme, THEMES } from "./themes.js";
 import type { Position, PuzzleCell } from "./types.js";
@@ -291,8 +291,8 @@ function HistoryDialog({ records, completedCount, onClose }: { readonly records:
           <dl>
             <div><dt>Progress</dt><dd>{completedCount} / {THEMES.length}</dd></div>
             <div><dt>Total time</dt><dd>{formatDuration(totals.elapsedMs)}</dd></div>
-            <div><dt>Words found</dt><dd>{totals.words}</dd></div>
-            <div><dt>Letters</dt><dd>{totals.lettersSelected}</dd></div>
+            <div><dt>Words found</dt><dd>{formatCount(totals.words)}</dd></div>
+            <div><dt>Letters</dt><dd>{formatCount(totals.lettersSelected)}</dd></div>
           </dl>
         </section>
         {records.length === 0 ? <p className="empty-state">Complete a puzzle and it will appear here.</p> : (
@@ -330,8 +330,8 @@ function CollectionCompleteDialog({ session, records, onReset }: { readonly sess
           <dl>
             <div><dt>Puzzles</dt><dd>{completeRecords.length}</dd></div>
             <div><dt>Total time</dt><dd>{formatDuration(totals.elapsedMs)}</dd></div>
-            <div><dt>Words found</dt><dd>{totals.words}</dd></div>
-            <div><dt>Letters</dt><dd>{totals.lettersSelected}</dd></div>
+            <div><dt>Words found</dt><dd>{formatCount(totals.words)}</dd></div>
+            <div><dt>Letters</dt><dd>{formatCount(totals.lettersSelected)}</dd></div>
           </dl>
         </section>
         <p className="dialog-copy">Reset everything to clear this summary, your history, preferences, and all progress before starting over.</p>

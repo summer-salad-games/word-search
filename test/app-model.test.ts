@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculatePuzzleProfile, createSession, extendSelection, generateCompletePuzzle, gameReducer, pathsMatch, resetSession } from "../src/app-model.js";
+import { calculatePuzzleProfile, createSession, extendSelection, formatCount, generateCompletePuzzle, gameReducer, pathsMatch, resetSession } from "../src/app-model.js";
 import { getTheme, THEMES } from "../src/themes.js";
 
 describe("application model", () => {
@@ -85,5 +85,13 @@ describe("application model", () => {
     expect(reset.lettersSelected).toBe(0);
     expect(reset.elapsedMs).toBe(0);
     expect(reset.status).toBe("playing");
+  });
+
+  it("formats large lifetime counters compactly", () => {
+    expect(formatCount(999)).toBe("999");
+    expect(formatCount(1_000)).toBe("1K");
+    expect(formatCount(1_500)).toBe("1.5K");
+    expect(formatCount(999_999)).toBe("1M");
+    expect(formatCount(2_400_000)).toBe("2.4M");
   });
 });
