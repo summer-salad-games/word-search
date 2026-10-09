@@ -177,11 +177,13 @@ test("fits a large iPhone when Safari exposes less height than the physical scre
   const grid = page.locator(".puzzle-grid");
   await expect(grid).toHaveAttribute("aria-label", /^7 by 10/);
   await expect(page.locator(".game-label")).toHaveCSS("white-space", "nowrap");
+  await expect(page.locator(".game-footer .timer")).toBeVisible();
   const bounds = await page.evaluate(() => {
     const header = document.querySelector(".topbar")!.getBoundingClientRect();
     const words = document.querySelector(".word-list")!.getBoundingClientRect();
     const puzzle = document.querySelector(".puzzle-grid")!.getBoundingClientRect();
     const footer = document.querySelector(".game-footer")!.getBoundingClientRect();
+    const timer = document.querySelector(".game-footer .timer")!.getBoundingClientRect();
     return {
       headerBottom: header.bottom,
       wordsTop: words.top,
@@ -191,6 +193,7 @@ test("fits a large iPhone when Safari exposes less height than the physical scre
       footerTop: footer.top,
       viewportHeight: window.innerHeight,
       centerOffset: (words.top + puzzle.bottom) / 2 - (header.bottom + footer.top) / 2,
+      timerOffset: (timer.left + timer.right) / 2 - (footer.left + footer.right) / 2,
     };
   });
   expect(bounds.headerBottom).toBeLessThan(bounds.wordsTop);
@@ -198,6 +201,7 @@ test("fits a large iPhone when Safari exposes less height than the physical scre
   expect(bounds.puzzleBottom).toBeLessThan(bounds.footerTop);
   expect(bounds.footerTop).toBeLessThan(bounds.viewportHeight);
   expect(Math.abs(bounds.centerOffset)).toBeLessThanOrEqual(1);
+  expect(Math.abs(bounds.timerOffset)).toBeLessThanOrEqual(1);
   await context.close();
 });
 

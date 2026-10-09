@@ -91,7 +91,8 @@ button { font: inherit; }
 .puzzle-cell.is-rejecting span { animation: reject-pulse 110ms ease-in-out; }
 .puzzle-cell.is-debug { color: var(--debug-text); background: var(--debug-cell); border-color: var(--debug-cell); }
 
-.game-footer { display: flex; justify-content: space-between; color: var(--muted); font-size: .76rem; font-weight: 650; letter-spacing: .04em; }
+.game-footer { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; color: var(--muted); font-size: .76rem; font-weight: 650; letter-spacing: .04em; }
+.game-footer > :last-child { text-align: right; }
 .overlay { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgb(10 10 10 / .48); backdrop-filter: blur(8px); animation: fade-in 180ms ease; }
 .dialog { width: min(100%, 520px); max-height: min(82dvh, 720px); padding: clamp(22px, 5vw, 36px); overflow: auto; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); box-shadow: var(--shadow); animation: dialog-in 260ms cubic-bezier(.2,.8,.2,1); }
 .dialog header { display: flex; align-items: start; justify-content: space-between; }
