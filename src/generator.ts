@@ -192,6 +192,8 @@ function findUnexpectedOccurrence(
 ): UnexpectedOccurrence | undefined {
   const height = grid.length;
   const width = grid[0]?.length ?? 0;
+  const maxSearchSteps = Math.max(10_000, width * height * Math.max(1, entries.length) * 24);
+  let searchSteps = 0;
 
   for (const entry of entries) {
     const characters = Array.from(entry.word);
@@ -204,6 +206,10 @@ function findUnexpectedOccurrence(
         const visited = new Set([keyOf(start)]);
 
         const search = (characterIndex: number): Position[] | undefined => {
+          searchSteps += 1;
+          if (searchSteps > maxSearchSteps) {
+            throw new PuzzleGenerationError("Duplicate-word validation exceeded its work limit.");
+          }
           if (characterIndex === characters.length) {
             return pathCellSetKey(path) === canonicalPathKey ? undefined : [...path];
           }
@@ -256,7 +262,7 @@ function fillWithoutAccidentalWords(
 
   if (entries.length === 0 || fillerPositions.size === 0) return;
   const solveDirections = configuration.allowedDirections;
-  const maxRepairs = Math.max(1_000, fillerPositions.size * fillLetters.length * 10);
+  const maxRepairs = Math.max(100, fillerPositions.size * 4);
 
   for (let repair = 0; repair < maxRepairs; repair += 1) {
     const occurrence = findUnexpectedOccurrence(grid, entries, solveDirections);
@@ -470,24 +476,23 @@ export function generatePuzzle(input: PuzzleInput): PuzzleResult {
       const placementDirections = reversed
         ? configuration.allowedDirections.map(oppositeDirection)
         : configuration.allowedDirections;
-      const pathResult = findPath(displayedCharacters, start, placementDirections, (candidatePath) => {
-        const candidateEntry = buildEntry(word, displayedCharacters, reversed, candidatePath);
-        applyWord(word, displayedCharacters, candidatePath.path);
-        const ambiguous = findUnexpectedOccurrence(
-          grid,
-          [...entries, candidateEntry],
-          configuration.allowedDirections,
-        ) !== undefined;
-        removeWord(word, candidatePath.path);
-        return !ambiguous;
-      });
+      const pathResult = findPath(displayedCharacters, start, placementDirections, () => true);
       if (pathResult === undefined) continue;
       applyWord(word, displayedCharacters, pathResult.path);
+      const candidateEntry = buildEntry(word, displayedCharacters, reversed, pathResult);
+      if (findUnexpectedOccurrence(
+        grid,
+        [...entries, candidateEntry],
+        configuration.allowedDirections,
+      ) !== undefined) {
+        removeWord(word, pathResult.path);
+        continue;
+      }
       for (let index = 0; index < pathResult.path.length; index += 1) {
         const position = pathResult.path[index]!;
         if (index > 0) globalEdges.add(edgeKey(pathResult.path[index - 1]!, position));
       }
-      entries.push(buildEntry(word, displayedCharacters, reversed, pathResult));
+      entries.push(candidateEntry);
       remaining.delete(word);
       break;
     }

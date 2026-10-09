@@ -2,6 +2,8 @@ import { Direction, generatePuzzle, PuzzleGenerationError, type Position, type P
 import type { PuzzleTheme } from "./themes.js";
 
 export const GENERATOR_VERSION = 5;
+const ATTEMPTS_PER_WORD_COUNT = 4;
+const MAX_COMPLETE_PUZZLE_ATTEMPTS = 52;
 
 function randomId(): string {
   if (typeof globalThis.crypto.randomUUID === "function") return globalThis.crypto.randomUUID();
@@ -99,12 +101,23 @@ function orderedWords(words: readonly string[], seed: string): string[] {
   });
 }
 
+function wordsWithoutSubstringConflicts(words: readonly string[]): string[] {
+  return words.reduce<string[]>((selected, word) => {
+    if (!selected.some((other) => word.includes(other) || other.includes(word))) selected.push(word);
+    return selected;
+  }, []);
+}
+
 export function generateCompletePuzzle(theme: PuzzleTheme, profile: PuzzleProfile, seed: string): { puzzle: PuzzleResult; targetWords: string[] } {
-  const ordered = orderedWords(theme.words, seed);
+  const ordered = wordsWithoutSubstringConflicts(orderedWords(theme.words, seed));
   const minimumWords = Math.min(4, ordered.length);
-  for (let count = Math.min(profile.targetWordCount, ordered.length); count >= minimumWords; count -= 1) {
+  let totalAttempts = 0;
+  for (let count = Math.min(profile.targetWordCount, ordered.length);
+    count >= minimumWords && totalAttempts < MAX_COMPLETE_PUZZLE_ATTEMPTS;
+    count -= 1) {
     const targetWords = ordered.slice(0, count);
-    for (let attempt = 0; attempt < 24; attempt += 1) {
+    for (let attempt = 0; attempt < ATTEMPTS_PER_WORD_COUNT && totalAttempts < MAX_COMPLETE_PUZZLE_ATTEMPTS; attempt += 1) {
+      totalAttempts += 1;
       try {
         const puzzle = generatePuzzle({
           theme: theme.title,

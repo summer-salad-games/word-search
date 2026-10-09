@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { calculatePuzzleProfile, createSession, extendSelection, formatDuration, gameReducer, pathsMatch, positionKey, resetSession, GENERATOR_VERSION, type GameSession } from "./app-model.js";
 import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, type ColorMode, type HistoryRecord } from "./persistence.js";
 import { getTheme, selectRandomTheme, THEMES } from "./themes.js";
 import type { Position, PuzzleCell } from "./types.js";
 import "./styles.css";
-
-const APP_VERSION = "1.0.0";
 
 interface WordSearchDebugApi {
   highlightWords(): void;
@@ -27,6 +25,53 @@ function Icon({ name }: { readonly name: "history" | "reset" | "moon" | "sun" | 
     reset: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></>,
   } as const;
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
+}
+
+function Modal({ labelledBy, className, onClose, children }: {
+  readonly labelledBy: string;
+  readonly className: string;
+  readonly onClose?: () => void;
+  readonly children: ReactNode;
+}) {
+  const dialogRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+    const dialog = dialogRef.current;
+    const firstFocusable = dialog?.querySelector<HTMLElement>("button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])");
+    (firstFocusable ?? dialog)?.focus();
+    return () => previouslyFocused?.focus();
+  }, []);
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === "Escape" && onClose !== undefined) {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])"));
+    if (focusable.length === 0) {
+      event.preventDefault();
+      event.currentTarget.focus();
+      return;
+    }
+    const first = focusable[0]!;
+    const last = focusable[focusable.length - 1]!;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  return <div className="overlay" role="presentation">
+    <section ref={dialogRef} className={`dialog ${className}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy} tabIndex={-1} onKeyDown={handleKeyDown}>
+      {children}
+    </section>
+  </div>;
 }
 
 function profileForCurrentScreen() {
@@ -239,8 +284,7 @@ function historyRecordFor(session: GameSession): HistoryRecord {
 function HistoryDialog({ records, completedCount, onClose }: { readonly records: readonly HistoryRecord[]; readonly completedCount: number; readonly onClose: () => void }) {
   const totals = summarizeHistory(records);
   return (
-    <div className="overlay" role="presentation">
-      <section className="dialog history-dialog" role="dialog" aria-modal="true" aria-labelledby="history-title">
+    <Modal labelledBy="history-title" className="history-dialog" onClose={onClose}>
         <header><div><p className="eyebrow">Your journey</p><h2 id="history-title">History</h2></div><button className="icon-button" onClick={onClose} aria-label="Close history"><Icon name="close" /></button></header>
         <section className="history-summary" aria-label="Global progress">
           <p className="eyebrow">Global progress</p>
@@ -259,21 +303,18 @@ function HistoryDialog({ records, completedCount, onClose }: { readonly records:
             </li>
           ))}</ol>
         )}
-      </section>
-    </div>
+    </Modal>
   );
 }
 
 function WinDialog({ session, onNext }: { readonly session: GameSession; readonly onNext: () => void }) {
   const theme = getTheme(session.themeId);
   return (
-    <div className="overlay celebration" role="presentation">
-      <section className="dialog win-dialog" role="dialog" aria-modal="true" aria-labelledby="win-title">
+    <Modal labelledBy="win-title" className="win-dialog">
         <div className="win-mark">✓</div><p className="eyebrow">Puzzle complete</p><h2 id="win-title">Nicely found.</h2><p className="win-theme">{theme.title}</p>
         <dl className="stats"><div><dt>Time</dt><dd>{formatDuration(session.elapsedMs)}</dd></div><div><dt>Words</dt><dd>{session.targetWords.length}</dd></div><div><dt>Letters</dt><dd>{session.lettersSelected}</dd></div></dl>
         <button className="primary-button" onClick={onNext}>Next puzzle <span aria-hidden="true">→</span></button>
-      </section>
-    </div>
+    </Modal>
   );
 }
 
@@ -281,8 +322,7 @@ function CollectionCompleteDialog({ session, records, onReset }: { readonly sess
   const completeRecords = records.some(({ id }) => id === session.id) ? records : [historyRecordFor(session), ...records];
   const totals = summarizeHistory(completeRecords);
   return (
-    <div className="overlay celebration" role="presentation">
-      <section className="dialog win-dialog" role="dialog" aria-modal="true" aria-labelledby="collection-title">
+    <Modal labelledBy="collection-title" className="win-dialog">
         <div className="win-mark">★</div><p className="eyebrow">Every puzzle complete</p><h2 id="collection-title">You found them all!</h2>
         <p className="dialog-copy">Congratulations — you completed all {THEMES.length} word-search grids.</p>
         <section className="history-summary lifetime-summary" aria-label="Lifetime summary">
@@ -296,8 +336,7 @@ function CollectionCompleteDialog({ session, records, onReset }: { readonly sess
         </section>
         <p className="dialog-copy">Reset everything to clear this summary, your history, preferences, and all progress before starting over.</p>
         <button className="primary-button" onClick={onReset}>Reset everything <span aria-hidden="true">↻</span></button>
-      </section>
-    </div>
+    </Modal>
   );
 }
 
@@ -305,8 +344,7 @@ function ResetDialog({ onBoard, onEverything, onClose }: {
   readonly onBoard: () => void; readonly onEverything: () => void; readonly onClose: () => void;
 }) {
   return (
-    <div className="overlay" role="presentation">
-      <section className="dialog reset-dialog" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+    <Modal labelledBy="reset-title" className="reset-dialog" onClose={onClose}>
         <p className="eyebrow">Reset</p><h2 id="reset-title">What would you like to reset?</h2>
         <p className="dialog-copy">Reset this board to replay the same puzzle, or erase everything and start as if you opened the game for the first time.</p>
         <div className="reset-actions">
@@ -314,8 +352,7 @@ function ResetDialog({ onBoard, onEverything, onClose }: {
           <button className="secondary-button danger-button" onClick={onEverything}>Reset everything</button>
           <button className="secondary-button" onClick={onClose}>Cancel</button>
         </div>
-      </section>
-    </div>
+    </Modal>
   );
 }
 
@@ -385,7 +422,7 @@ function Game({ initialSession, colorMode, isFinalPuzzle, completedCount, lifeti
 
   return (
     <main className={`app-shell${session.profile.columns < 8 ? " mobile-layout" : ""}`}>
-      <header className="topbar"><div><p className="eyebrow game-label"><span>Word search</span><span className="version-tag">{APP_VERSION}</span></p><h1>{theme.title}</h1></div><div className="topbar-actions"><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
+      <header className="topbar"><div><p className="eyebrow game-label"><span>Word search</span><span className="version-tag">{__APP_VERSION__}</span></p><h1>{theme.title}</h1></div><div className="topbar-actions"><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
       <div className="puzzle-content">
         <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
           const solved = session.solvedWords.includes(word);

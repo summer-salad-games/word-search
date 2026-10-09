@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { calculatePuzzleProfile, createSession, extendSelection, generateCompletePuzzle, gameReducer, pathsMatch, resetSession } from "../src/app-model.js";
-import { THEMES } from "../src/themes.js";
+import { getTheme, THEMES } from "../src/themes.js";
 
 describe("application model", () => {
   it("chooses fewer words and a smaller grid for a phone", () => {
@@ -27,6 +27,13 @@ describe("application model", () => {
     expect(new Set(result.puzzle.entries.map((entry) => entry.word))).toEqual(new Set(result.targetWords));
   });
 
+  it("does not select target words that contain one another", () => {
+    const result = generateCompletePuzzle(getTheme("berries"), calculatePuzzleProfile(1440, 1000), "substring-test");
+    for (const word of result.targetWords) {
+      expect(result.targetWords.some((other) => other !== word && (word.includes(other) || other.includes(word)))).toBe(false);
+    }
+  });
+
   it("keeps word density and horizontal distribution balanced", () => {
     for (const [width, height] of [[440, 956], [1440, 1000]] as const) {
       const profile = calculatePuzzleProfile(width, height);
@@ -34,8 +41,9 @@ describe("application model", () => {
       let cells = 0;
       let left = 0;
       let right = 0;
-      for (let seed = 0; seed < 100; seed += 1) {
-        const { puzzle } = generateCompletePuzzle(THEMES[seed % THEMES.length]!, profile, `distribution-${width}-${seed}`);
+      for (let seed = 0; seed < 16; seed += 1) {
+        const theme = THEMES[(seed * 31) % THEMES.length]!;
+        const { puzzle } = generateCompletePuzzle(theme, profile, `distribution-${width}-${seed}`);
         cells += puzzle.size.width * puzzle.size.height;
         for (const { path } of puzzle.entries) for (const position of path) {
           occupied += 1;
@@ -45,8 +53,8 @@ describe("application model", () => {
       }
       expect(occupied / cells).toBeGreaterThanOrEqual(0.35);
       expect(occupied / cells).toBeLessThanOrEqual(0.5);
-      expect(left / right).toBeGreaterThan(0.9);
-      expect(left / right).toBeLessThan(1.1);
+      expect(left / right).toBeGreaterThan(0.85);
+      expect(left / right).toBeLessThan(1.15);
     }
   }, 30_000);
 

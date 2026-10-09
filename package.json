@@ -1,6 +1,6 @@
 {
   "name": "@summer-salad-games/word-search",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Responsive client-side word search game",
   "type": "module",
   "sideEffects": false,
@@ -9,9 +9,11 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:stress": "vitest run --mode stress",
     "test:e2e": "playwright test",
+    "test:release": "npm run check && npm test && npm run test:stress && npm run test:e2e && npm run build",
     "preview": "vite preview",
-    "prepack": "npm run check && npm test && npm run build"
+    "prepack": "npm run check && npm test && npm run test:stress && npm run build"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

@@ -28,4 +28,22 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Toggle color mode" }));
     expect(document.documentElement.dataset.theme).toBe("light");
   });
+
+  it("traps dialog focus, closes with Escape, and restores focus", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { level: 1 });
+    const resetButton = screen.getByRole("button", { name: "Reset progress" });
+    resetButton.focus();
+    await user.click(resetButton);
+    const dialog = await screen.findByRole("dialog", { name: "What would you like to reset?" });
+    const buttons = screen.getAllByRole("button").filter((button) => dialog.contains(button));
+    expect(buttons[0]).toHaveFocus();
+    buttons.at(-1)!.focus();
+    await user.tab();
+    expect(buttons[0]).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { name: "What would you like to reset?" })).not.toBeInTheDocument();
+    expect(resetButton).toHaveFocus();
+  });
 });

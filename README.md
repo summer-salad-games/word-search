@@ -59,6 +59,8 @@ Every word placement is checked against the complete grid and rejected if it cre
 
 - `npm run dev` starts the Vite development server.
 - `npm test` runs generator, application-model, and React component tests.
+- `npm run test:stress` runs the 1,000-board uniqueness and solver validation.
 - `npm run test:e2e` runs real Chromium pointer, completion, history, and rollback tests.
+- `npm run test:release` runs every release check, including stress and browser tests.
 - `npm run check` performs strict type checking.
 - `npm run build` creates the production website in `dist/`.
