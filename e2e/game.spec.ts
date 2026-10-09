@@ -177,6 +177,7 @@ test("fits a large iPhone when Safari exposes less height than the physical scre
   await page.goto("/");
   const grid = page.locator(".puzzle-grid");
   await expect(grid).toHaveAttribute("aria-label", /^7 by 10/);
+  await expect(page.locator(".game-label")).toHaveCSS("white-space", "nowrap");
   const bounds = await page.evaluate(() => {
     const header = document.querySelector(".topbar")!.getBoundingClientRect();
     const words = document.querySelector(".word-list")!.getBoundingClientRect();

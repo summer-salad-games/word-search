@@ -50,8 +50,8 @@ button { font: inherit; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .topbar h1 { margin: 2px 0 0; font-size: clamp(1.6rem, 4vw, 2.7rem); letter-spacing: -0.045em; line-height: 1; }
 .eyebrow { margin: 0; color: var(--muted); font-size: .7rem; font-weight: 750; letter-spacing: .16em; text-transform: uppercase; }
-.game-label { display: flex; align-items: center; gap: 7px; }
-.version-tag { padding: 2px 5px; border: 1px solid var(--line); border-radius: 4px; font-size: .56rem; letter-spacing: .08em; }
+.game-label { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.version-tag { flex: none; padding: 2px 5px; border: 1px solid var(--line); border-radius: 4px; font-size: .56rem; letter-spacing: .08em; }
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
 .timer { min-width: 4.5rem; font-variant-numeric: tabular-nums; font-weight: 720; text-align: center; }
 .icon-button { width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 50%; display: grid; place-items: center; background: var(--surface); color: var(--text); cursor: pointer; transition: transform 130ms ease, background 130ms ease; }
