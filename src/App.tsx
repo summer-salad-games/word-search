@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { calculatePuzzleProfile, createSession, extendSelection, formatCount, formatDuration, gameReducer, pathsMatch, positionKey, resetSession, GENERATOR_VERSION, type GameSession } from "./app-model.js";
-import { playFeedback, unlockFeedback } from "./feedback.js";
+import { playFeedback, unlockAudio, unlockFeedback } from "./feedback.js";
 import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadFeedbackEnabled, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, saveFeedbackEnabled, type ColorMode, type HistoryRecord } from "./persistence.js";
 import { getTheme, selectRandomTheme, THEMES } from "./themes.js";
 import type { Position, PuzzleCell } from "./types.js";
@@ -141,10 +141,11 @@ interface GridProps {
   readonly currentColor: string;
   readonly debugWords: boolean;
   readonly onCellFeedback: (kind: "cell" | "reject") => void;
+  readonly onUnlockAudio: () => void;
   readonly onUnlockFeedback: () => void;
 }
 
-function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords, onCellFeedback, onUnlockFeedback }: GridProps) {
+function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords, onCellFeedback, onUnlockAudio, onUnlockFeedback }: GridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const pointerId = useRef<number | null>(null);
   const selectionRef = useRef<Position[]>([]);
@@ -238,6 +239,7 @@ function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords, on
         if (locked || session.status !== "playing") return;
         const position = positionFromPointer(event);
         if (position === undefined || solvedCells.has(positionKey(position))) return;
+        onUnlockAudio();
         event.preventDefault();
         pointerId.current = event.pointerId;
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -395,6 +397,7 @@ function Game({ initialSession, colorMode, feedbackEnabled, isFinalPuzzle, compl
   const currentColor = theme.colors[selectionIndex % theme.colors.length]!;
   const { elapsed, getElapsed, pause } = useGameTimer(session, historyOpen || resetOpen || hidden, (value) => dispatch({ type: "set-elapsed", elapsedMs: value }));
   const cellFeedback = useCallback((kind: "cell" | "reject") => playFeedback(kind, feedbackEnabled), [feedbackEnabled]);
+  const unlockGameAudio = useCallback(() => unlockAudio(feedbackEnabled), [feedbackEnabled]);
   const unlockGameFeedback = useCallback(() => unlockFeedback(feedbackEnabled), [feedbackEnabled]);
 
   useEffect(() => onSession(session), [onSession, session]);
@@ -453,7 +456,7 @@ function Game({ initialSession, colorMode, feedbackEnabled, isFinalPuzzle, compl
           } as CSSProperties;
           return <span key={word} className={`word-chip${solved ? " is-solved" : ""}`} style={style}>{word}</span>;
         })}</section>
-        <section className="board-stage"><PuzzleGrid session={session} colors={colors} onSelection={onSelection} currentColor={currentColor} debugWords={debugWords} onCellFeedback={cellFeedback} onUnlockFeedback={unlockGameFeedback} /></section>
+        <section className="board-stage"><PuzzleGrid session={session} colors={colors} onSelection={onSelection} currentColor={currentColor} debugWords={debugWords} onCellFeedback={cellFeedback} onUnlockAudio={unlockGameAudio} onUnlockFeedback={unlockGameFeedback} /></section>
       </div>
       <footer className="game-footer"><span>{session.solvedWords.length} / {session.targetWords.length} found</span><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span></footer>
       {historyOpen && <HistoryDialog records={history} completedCount={completedCount} onClose={() => setHistoryOpen(false)} />}
