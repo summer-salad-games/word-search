@@ -2,6 +2,7 @@ type FeedbackKind = "cell" | "reject" | "word" | "complete";
 
 interface FeedbackNote {
   readonly frequency: number;
+  readonly endFrequency?: number;
   readonly delay: number;
   readonly duration: number;
   readonly volume: number;
@@ -9,21 +10,21 @@ interface FeedbackNote {
 }
 
 const NOTES: Readonly<Record<FeedbackKind, readonly FeedbackNote[]>> = {
-  cell: [{ frequency: 560, delay: 0, duration: 0.018, volume: 0.012, type: "sine" }],
-  reject: [{ frequency: 230, delay: 0, duration: 0.026, volume: 0.009, type: "triangle" }],
+  cell: [{ frequency: 740, endFrequency: 540, delay: 0, duration: 0.032, volume: 0.018, type: "triangle" }],
+  reject: [{ frequency: 280, endFrequency: 180, delay: 0, duration: 0.032, volume: 0.011, type: "square" }],
   word: [
-    { frequency: 620, delay: 0, duration: 0.045, volume: 0.018, type: "sine" },
-    { frequency: 820, delay: 0.052, duration: 0.065, volume: 0.015, type: "sine" },
+    { frequency: 660, endFrequency: 740, delay: 0, duration: 0.05, volume: 0.022, type: "triangle" },
+    { frequency: 940, endFrequency: 1_040, delay: 0.052, duration: 0.075, volume: 0.019, type: "triangle" },
   ],
   complete: [
-    { frequency: 590, delay: 0, duration: 0.055, volume: 0.017, type: "sine" },
-    { frequency: 740, delay: 0.07, duration: 0.06, volume: 0.017, type: "sine" },
-    { frequency: 940, delay: 0.145, duration: 0.09, volume: 0.015, type: "sine" },
+    { frequency: 620, endFrequency: 690, delay: 0, duration: 0.06, volume: 0.021, type: "triangle" },
+    { frequency: 820, endFrequency: 900, delay: 0.065, duration: 0.07, volume: 0.02, type: "triangle" },
+    { frequency: 1_080, endFrequency: 1_180, delay: 0.14, duration: 0.1, volume: 0.018, type: "triangle" },
   ],
 };
 
 let audioContext: AudioContext | undefined;
-let previousCellFrequency = 560;
+let previousCellFrequency = 720;
 let lastCellFeedbackAt = 0;
 
 function context(): AudioContext | undefined {
@@ -46,6 +47,7 @@ function playNotes(notes: readonly FeedbackNote[]): void {
     const noteEnd = noteStart + note.duration;
     oscillator.type = note.type;
     oscillator.frequency.setValueAtTime(note.frequency, noteStart);
+    if (note.endFrequency !== undefined) oscillator.frequency.exponentialRampToValueAtTime(note.endFrequency, noteEnd);
     gain.gain.setValueAtTime(0.0001, noteStart);
     gain.gain.exponentialRampToValueAtTime(note.volume, noteStart + 0.004);
     gain.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
@@ -66,8 +68,8 @@ export function playFeedback(kind: FeedbackKind, enabled: boolean): void {
     const now = performance.now();
     if (now - lastCellFeedbackAt < 28) return;
     lastCellFeedbackAt = now;
-    previousCellFrequency = previousCellFrequency === 560 ? 610 : 560;
-    playNotes([{ ...NOTES.cell[0]!, frequency: previousCellFrequency }]);
+    previousCellFrequency = previousCellFrequency === 720 ? 790 : 720;
+    playNotes([{ ...NOTES.cell[0]!, frequency: previousCellFrequency, endFrequency: previousCellFrequency - 200 }]);
     vibrate(6);
     return;
   }
