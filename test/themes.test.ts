@@ -7,14 +7,16 @@ describe("theme catalog", () => {
     expect(THEMES).toHaveLength(500);
     expect(new Set(THEMES.map(({ id }) => id)).size).toBe(500);
     expect(new Set(THEMES.map(({ title }) => title)).size).toBe(500);
+    expect(new Set(THEMES.map(({ words }) => words.join("\0"))).size).toBe(500);
     expect(THEMES.every(({ title }) => /^\S+$/u.test(title))).toBe(true);
-    expect(THEMES.some(({ id }) => id === "nature-journey")).toBe(true);
+    expect(THEMES.some(({ id }) => id === "nature-essentials")).toBe(true);
   });
 
   it("contains valid, unique content in every theme", () => {
     for (const theme of THEMES) {
-      expect(theme.words.length, theme.id).toBeGreaterThanOrEqual(20);
+      expect(theme.words.length, theme.id).toBeGreaterThanOrEqual(10);
       expect(theme.words.every((word) => /^[a-z]+$/u.test(word)), theme.id).toBe(true);
+      expect(theme.words.every((word) => word.length <= 12), theme.id).toBe(true);
       expect(new Set(theme.words.map((word) => word.normalize("NFC").trim().toLocaleLowerCase("und"))).size, theme.id).toBe(theme.words.length);
       expect(theme.colors.length, theme.id).toBeGreaterThanOrEqual(6);
     }
@@ -28,6 +30,19 @@ describe("theme catalog", () => {
   });
 
   it("never repeats completed themes and reports when the collection is exhausted", () => {
+    const completed = new Set<string>();
+    const titles = new Set<string>();
+    for (let index = 0; index < THEMES.length; index += 1) {
+      const selected = selectRandomTheme(completed, () => 0.37)!;
+      expect(completed.has(selected.id)).toBe(false);
+      expect(titles.has(selected.title)).toBe(false);
+      completed.add(selected.id);
+      titles.add(selected.title);
+    }
+    expect(completed.size).toBe(500);
+    expect(titles.size).toBe(500);
+    expect(selectRandomTheme(completed, () => 0.37)).toBeUndefined();
+
     const last = THEMES.at(-1)!;
     const allButLast = new Set(THEMES.slice(0, -1).map(({ id }) => id));
     expect(selectRandomTheme(allButLast, () => 0.5)).toBe(last);

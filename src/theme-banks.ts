@@ -1,3 +1,5 @@
+import { EXTRA_THEME_BANKS } from "./extra-theme-banks.js";
+
 export interface ThemeBank {
   readonly id: string;
   readonly title: string;
@@ -10,7 +12,7 @@ const bank = (id: string, title: string, words: string): ThemeBank => ({
   words: Object.freeze(words.trim().split(/\s+/u)),
 });
 
-export const THEME_BANKS: readonly ThemeBank[] = Object.freeze([
+const BASE_THEME_BANKS: readonly ThemeBank[] = Object.freeze([
   bank("nature", "Nature", "sunrise meadow waterfall rainbow thunder breeze pebble valley canyon blossom woodland raindrop moonlight hillside evergreen wildflower coastline mushroom riverbank snowflake starlight volcano lagoon prairie glacier orchard wetland"),
   bank("ocean", "Ocean", "dolphin seahorse jellyfish octopus starfish stingray lobster barnacle seaweed coral reef shark whale marlin tuna squid oyster pearl current tide wave lagoon harbor anchor sailboat shipwreck lighthouse coastline abyss"),
   bank("cosmos", "Cosmos", "galaxy nebula asteroid meteor comet planet saturn jupiter mercury venus earth mars pluto orbit eclipse gravity vacuum rocket module satellite astronaut telescope starlight supernova pulsar quasar crater horizon zenith"),
@@ -51,19 +53,19 @@ export const THEME_BANKS: readonly ThemeBank[] = Object.freeze([
   bank("composers", "Composers", "bach mozart beethoven chopin vivaldi handel haydn schubert wagner brahms liszt tchaikovsky mahler verdi puccini debussy ravel stravinsky rossini bizet strauss mendelssohn grieg corelli satie gershwin copland glass"),
   bank("explorers", "Explorers", "magellan columbus cook polo vespucci shackleton amundsen scott hillary armstrong earhart livingstone stanley cartier cabot hudson drake raleigh tasman balboa champlain zheng sacagawea byrd heyerdahl burton speke battuta cousteau"),
   bank("leaders", "Leaders", "mandela gandhi lincoln churchill roosevelt washington jefferson cleopatra augustus caesar napoleon elizabeth victoria catherine meiji akbar asoka ataturk bolivar garibaldi bismarck pericles saladin suleiman charlemagne ramses havel walesa nkrumah"),
-  bank("astronomy", "Astronomy", "telescope observatory planet galaxy nebula quasar pulsar supernova asteroid meteor comet eclipse solstice equinox orbit gravity spectrum photon lightyear parsec cosmos zenith horizon crater satellite constellation zodiac aurora solar lunar vacuum"),
+  bank("astronomy", "Astronomy", "telescope observatory planet galaxy nebula quasar pulsar supernova asteroid meteor comet eclipse solstice equinox orbit gravity spectrum photon lightyear parsec cosmos zenith horizon crater satellite starpattern zodiac aurora solar lunar vacuum"),
   bank("physics", "Physics", "energy matter force motion gravity inertia momentum velocity friction pressure density charge current voltage magnet photon quantum atom nucleus electron proton neutron wave optics thermal entropy relativity vector scalar mass power field"),
   bank("chemistry", "Chemistry", "element atom molecule compound reaction catalyst solvent solute acid base salt crystal metal carbon oxygen hydrogen nitrogen sulfur helium neon sodium calcium iron copper silver gold flask beaker polymer isotope electron bond"),
   bank("biology", "Biology", "cell nucleus membrane tissue organ enzyme protein genome dna rna gene chromosome bacteria virus fungus plant animal species habitat ecology evolution mutation pollen spore embryo neuron muscle blood oxygen carbon life microscope"),
   bank("anatomy", "Anatomy", "brain heart lung liver kidney stomach intestine pancreas spleen bladder bone muscle tendon ligament nerve artery vein blood skin skull spine rib pelvis shoulder elbow wrist knee ankle eye ear tongue"),
   bank("geology", "Geology", "granite basalt quartz marble slate shale limestone sandstone crystal mineral fossil magma lava volcano crater fault strata tectonic mantle crust core erosion canyon valley plateau glacier sediment pebble boulder earthquake"),
-  bank("dinosaurs", "Dinosaurs", "trex triceratops stegosaurus raptor brachiosaurus diplodocus ankylosaurus spinosaurus allosaurus iguanodon parasaurolophus pteranodon archaeopteryx carnotaurus compsognathus gallimimus oviraptor pachycephalosaurus apatosaurus deinonychus fossil jurassic cretaceous triassic amber footprint skeleton museum extinct predator herbivore"),
+  bank("dinosaurs", "Dinosaurs", "trex triceratops stegosaurus raptor brachio diplodocus ankylosaurus spinosaurus allosaurus iguanodon parasaur pteranodon archaeopt carnotaurus compy gallimimus oviraptor pachy apatosaurus deinonychus fossil jurassic cretaceous triassic amber footprint skeleton museum extinct predator herbivore"),
   bank("medicine", "Medicine", "doctor nurse clinic hospital patient remedy vaccine tablet capsule syrup bandage plaster stethoscope thermometer surgery therapy diagnosis recovery health pulse heartbeat blood oxygen xray scan laboratory pharmacy ambulance surgeon dentist vision hearing"),
   bank("mathematics", "Mathematics", "number algebra geometry calculus fraction decimal integer equation formula theorem proof angle circle square triangle polygon radius diameter vector matrix graph axis tangent sine cosine ratio percent average median prime factor infinity"),
   bank("computing", "Computing", "computer keyboard monitor processor memory storage network server browser website program coding function variable object array string boolean binary pixel cursor window folder file cloud database router socket cache kernel terminal compiler algorithm"),
   bank("instruments", "Instruments", "piano guitar violin cello viola trumpet trombone tuba flute piccolo clarinet oboe bassoon saxophone harp banjo ukulele mandolin accordion harmonica drums cymbal xylophone marimba organ sitar lute bagpipe recorder"),
   bank("musicgenres", "Music", "rock jazz blues soul funk disco reggae ska punk metal folk country gospel classical opera techno house trance ambient salsa samba tango flamenco hiphop rap pop indie grunge bluegrass dubstep swing"),
-  bank("painting", "Painting", "canvas brush palette pigment easel portrait landscape stilllife watercolor acrylic oil pastel charcoal sketch mural fresco gallery studio frame shadow highlight texture color contrast perspective abstract realism impressionism cubism surrealism modern"),
+  bank("painting", "Painting", "canvas brush palette pigment easel portrait landscape stilllife watercolor acrylic oil pastel charcoal sketch mural fresco gallery studio frame shadow highlight texture color contrast perspective abstract realism impression cubism surrealism modern"),
   bank("literature", "Literature", "novel poetry drama comedy tragedy epic fable myth legend memoir essay prose verse stanza chapter author reader library book story plot character narrator dialogue metaphor symbol theme mystery romance fantasy satire"),
   bank("greekmyth", "Greek", "zeus hera poseidon hades athena apollo artemis ares aphrodite hermes demeter dionysus hephaestus persephone hercules perseus achilles odysseus theseus medusa minotaur cyclops pegasus phoenix hydra titan olympus oracle trojan atlas"),
   bank("norsemyth", "Norse", "odin thor loki freya frigg tyr balder heimdall njord hel fenrir jormungand sleipnir valkyrie asgard midgard valhalla bifrost yggdrasil ragnarok mjolnir runes viking giant dwarf elf norn saga raven frost"),
@@ -82,3 +84,6 @@ export const THEME_BANKS: readonly ThemeBank[] = Object.freeze([
   bank("tools", "Tools", "hammer mallet screwdriver wrench spanner pliers chisel saw drill level ruler tape clamp vise anvil file brush shovel rake trowel axe hatchet crowbar ladder toolbox blade handle nail screw bolt nut washer"),
   bank("home", "Home", "kitchen bedroom bathroom hallway basement attic garage garden balcony window doorway staircase carpet curtain cushion sofa table chair lamp mirror clock shelf cupboard drawer basket blanket pillow towel kettle vacuum broom"),
 ]);
+
+export const BASE_THEME_COUNT = BASE_THEME_BANKS.length;
+export const THEME_BANKS: readonly ThemeBank[] = Object.freeze([...BASE_THEME_BANKS, ...EXTRA_THEME_BANKS]);

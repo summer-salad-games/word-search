@@ -1,4 +1,4 @@
-import { THEME_BANKS } from "./theme-banks.js";
+import { BASE_THEME_COUNT, THEME_BANKS } from "./theme-banks.js";
 
 export interface PuzzleTheme {
   readonly id: string;
@@ -18,9 +18,6 @@ const PALETTES: readonly (readonly string[])[] = Object.freeze([
   ["#277da1", "#577590", "#43aa8b", "#90be6d", "#f9c74f", "#f94144"],
 ]);
 
-const VARIANTS = ["Essentials", "Explorer", "Discovery", "Challenge", "Collection", "Quest", "Mosaic", "Journey"] as const;
-const THEME_TOTAL = 500;
-
 const singleWordTitle = (title: string): string => title.replace(/\s+/gu, "");
 
 function hash(value: string): number {
@@ -32,21 +29,16 @@ function hash(value: string): number {
   return result >>> 0;
 }
 
-const baseVariantCount = Math.floor(THEME_TOTAL / THEME_BANKS.length);
-const additionalVariantCount = THEME_TOTAL % THEME_BANKS.length;
-
-export const THEMES: readonly PuzzleTheme[] = Object.freeze(THEME_BANKS.flatMap((bank, bankIndex) =>
-  VARIANTS.slice(0, baseVariantCount + Number(bankIndex < additionalVariantCount)).map((variant, variantIndex) => {
-    const id = `${bank.id}-${variant.toLowerCase()}`;
+export const THEMES: readonly PuzzleTheme[] = Object.freeze(THEME_BANKS.map((bank, bankIndex) => {
+    const id = bankIndex < BASE_THEME_COUNT ? `${bank.id}-essentials` : bank.id;
     const words = [...bank.words].sort((left, right) => hash(`${id}:${left}`) - hash(`${id}:${right}`)).slice(0, 22);
     return Object.freeze({
       id,
-      title: singleWordTitle(variantIndex === 0 ? bank.title : `${bank.title}${variant}`),
+      title: singleWordTitle(bank.title),
       words: Object.freeze(words),
-      colors: PALETTES[(bankIndex + variantIndex) % PALETTES.length]!,
+      colors: PALETTES[bankIndex % PALETTES.length]!,
     });
-  }),
-));
+  }));
 
 export function selectRandomTheme(completedIds: ReadonlySet<string> = new Set(), random: () => number = Math.random): PuzzleTheme | undefined {
   const available = THEMES.filter((theme) => !completedIds.has(theme.id));
