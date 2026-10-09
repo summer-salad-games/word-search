@@ -149,7 +149,7 @@ export const EXTRA_THEME_BANKS: readonly ExtraThemeBank[] = Object.freeze([
   bank("greece", "Greece", "athens sparta delphi crete rhodes corfu mykonos santorini olympus aegean ionian acropolis temple olive feta marble island myth"),
   bank("egypt", "Egypt", "cairo luxor giza aswan nile delta pyramid sphinx pharaoh temple tomb desert papyrus mummy scarab oasis alexandria hieroglyph"),
   bank("morocco", "Morocco", "rabat marrakesh casablanca fez tangier atlas sahara medina souk riad tajine mint mosaic desert coast camel spice carpet"),
-  bank("kenya", "Kenya", "nairobi mombasa nakuru savanna safari lion elephant giraffe zebra flamingo masai mara kilimanjaro tea coffee coast lake valley"),
+  bank("tunisia", "Tunisia", "tunis carthage sousse monastir hammamet bizerte kairouan djerba tozeur douz matmata sahara medina couscous harissa olive jasmine mosaic coast oasis"),
   bank("japan", "Japan", "tokyo kyoto osaka nara hokkaido fuji sakura sushi ramen kimono samurai shogun shrine temple bamboo anime manga island"),
   bank("china", "China", "beijing shanghai shenzhen guangzhou wuhan tibet hainan yangtze yellow wall panda dragon silk tea rice pagoda lantern"),
   bank("india", "India", "delhi mumbai kolkata chennai jaipur agra goa kerala punjab bengal ganges tajmahal curry sari yoga monsoon tiger"),
