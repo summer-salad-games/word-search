@@ -104,7 +104,8 @@ button { font: inherit; }
 .history-summary dd { font-size: 1.15rem; }
 .lifetime-summary { text-align: left; }
 .lifetime-summary + .dialog-copy { margin-bottom: 20px; }
-.history-list { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 10px; }
+.history-dialog { display: flex; flex-direction: column; overflow: hidden; }
+.history-list { min-height: 0; list-style: none; padding: 0 2px 2px 0; margin: 24px 0 0; display: grid; gap: 10px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
 .history-list li { padding: 15px; border: 1px solid var(--line); border-radius: 14px; }
 .history-list li > div { display: flex; justify-content: space-between; gap: 12px; }
 .history-list span { color: var(--muted); font-size: .8rem; }
