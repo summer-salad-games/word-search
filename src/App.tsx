@@ -83,19 +83,31 @@ function profileForCurrentScreen() {
   return calculatePuzzleProfile(width, height);
 }
 
-function useMobileLandscape(): boolean {
-  const mobile = matchMedia("(pointer: coarse)");
+interface OrientationPolicy {
+  readonly supported: boolean;
+  readonly requiredOrientation?: "portrait" | "landscape";
+}
+
+function useOrientationPolicy(): OrientationPolicy {
+  const coarsePointer = matchMedia("(pointer: coarse)");
   const landscape = matchMedia("(orientation: landscape)");
-  const read = () => mobile.matches && landscape.matches;
-  const [isLandscape, setIsLandscape] = useState(read);
+  const read = (): OrientationPolicy => {
+    if (!coarsePointer.matches) return { supported: true };
+    const tablet = Math.min(window.screen.width, window.screen.height) >= 600;
+    const requiredOrientation = tablet ? "landscape" : "portrait";
+    return { supported: landscape.matches === tablet, requiredOrientation };
+  };
+  const [policy, setPolicy] = useState(read);
   useEffect(() => {
-    const update = () => setIsLandscape(read());
+    const update = () => setPolicy(read());
     landscape.addEventListener("change", update);
+    coarsePointer.addEventListener("change", update);
     return () => {
       landscape.removeEventListener("change", update);
+      coarsePointer.removeEventListener("change", update);
     };
   }, []);
-  return isLandscape;
+  return policy;
 }
 
 function useGameTimer(session: GameSession, paused: boolean, onElapsed: (value: number) => void) {
@@ -466,7 +478,8 @@ function Game({ initialSession, colorMode, feedbackEnabled, isFinalPuzzle, compl
 }
 
 export default function App() {
-  const mobileLandscape = useMobileLandscape();
+  const orientation = useOrientationPolicy();
+  const initialized = useRef(false);
   const [session, setSession] = useState<GameSession>();
   const [colorMode, setColorMode] = useState<ColorMode>("system");
   const [feedbackEnabled, setFeedbackEnabled] = useState(true);
@@ -475,6 +488,8 @@ export default function App() {
   const [error, setError] = useState<string>();
 
   useEffect(() => {
+    if (!orientation.supported || initialized.current) return;
+    initialized.current = true;
     void Promise.all([loadActiveGame(), loadColorMode(), loadFeedbackEnabled(), loadCompletedThemeIds(), loadHistory()]).then(([active, mode, persistedFeedbackEnabled, persistedCompleted, persistedHistory]) => {
       const resolvedMode = mode === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode;
       const knownIds = new Set(THEMES.map((theme) => theme.id));
@@ -493,7 +508,7 @@ export default function App() {
       try { setSession(createSession(selectRandomTheme()!, profileForCurrentScreen())); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     });
-  }, []);
+  }, [orientation.supported]);
 
   useEffect(() => {
     const dark = colorMode === "dark" || (colorMode === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
@@ -555,7 +570,7 @@ export default function App() {
     return theme.id;
   }, []);
 
-  if (mobileLandscape) return <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for portrait play.</span></div>;
+  if (!orientation.supported) return <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for {orientation.requiredOrientation} play.</span></div>;
   if (error !== undefined) return <main className="loading-screen"><p className="eyebrow">Something went wrong</p><h1>{error}</h1><button className="primary-button" onClick={() => location.reload()}>Try again</button></main>;
   if (session === undefined) return <main className="loading-screen"><div className="loader"/><p>Preparing your puzzle…</p></main>;
   const completedBeforeCurrent = completedThemeIds.filter((id) => id !== session.themeId).length;

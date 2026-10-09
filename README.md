@@ -12,6 +12,8 @@ npm run build
 
 The game calculates a grid and target count from the viewport before each puzzle. Phone puzzles use fewer words and smaller grids than desktop puzzles. Once play begins, resizing scales the existing board without replacing it.
 
+Phones generate puzzles only in portrait orientation, while tablets generate them only in landscape. Unsupported orientations show a turn-device prompt without creating or replacing a puzzle. A shortest physical screen side of 600 pixels separates tablets from phones.
+
 Words can turn between letters using cardinal moves only. Paths cannot revisit, overlap, or intersect themselves. Reversed words are supported. Every target is guaranteed to be placed, and generation rejects boards with alternate valid solutions.
 
 ## Generator usage

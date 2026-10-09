@@ -272,6 +272,65 @@ test("blocks unsupported mobile landscape orientation", async ({ browser }) => {
   const page = await context.newPage();
   await page.goto("/");
   await expect(page.getByText("Turn your device")).toBeVisible();
+  await expect(page.getByText("This puzzle is designed for portrait play.")).toBeVisible();
+  expect(await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    const value = await new Promise<unknown>((resolve, reject) => {
+      const request = db.transaction("state").objectStore("state").get("active-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return value;
+  })).toBeUndefined();
+  await context.close();
+});
+
+test("waits for tablet landscape before generating its first puzzle", async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: 834, height: 1112 },
+    screen: { width: 834, height: 1194 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  await expect(page.getByText("Turn your device")).toBeVisible();
+  await expect(page.getByText("This puzzle is designed for landscape play.")).toBeVisible();
+  expect(await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    const value = await new Promise<unknown>((resolve, reject) => {
+      const request = db.transaction("state").objectStore("state").get("active-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return value;
+  })).toBeUndefined();
+
+  await page.setViewportSize({ width: 1112, height: 834 });
+  await expect(page.locator(".puzzle-grid")).toBeVisible();
+  await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^16 by 11/);
+  const letters = await page.locator(".puzzle-cell").allTextContents();
+  await page.setViewportSize({ width: 834, height: 1112 });
+  await expect(page.getByText("Turn your device")).toBeVisible();
+  await page.setViewportSize({ width: 1112, height: 834 });
+  await expect(page.locator(".puzzle-grid")).toBeVisible();
+  expect(await page.locator(".puzzle-cell").allTextContents()).toEqual(letters);
+  await context.close();
+});
+
+test("uses the desktop-style layout when a tablet starts in landscape", async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: 1194, height: 834 },
+    screen: { width: 1194, height: 834 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^17 by 11/);
+  await expect(page.getByText("Turn your device")).not.toBeVisible();
   await context.close();
 });
 
