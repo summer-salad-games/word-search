@@ -231,6 +231,7 @@ function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords }: 
         if (locked || session.status !== "playing") return;
         const position = positionFromPointer(event);
         if (position === undefined || solvedCells.has(positionKey(position))) return;
+        event.preventDefault();
         pointerId.current = event.pointerId;
         event.currentTarget.setPointerCapture(event.pointerId);
         setSelectionColor(currentColor);

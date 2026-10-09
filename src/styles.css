@@ -80,6 +80,7 @@ button { font: inherit; }
   touch-action: none;
   cursor: default;
 }
+.puzzle-grid, .puzzle-grid * { user-select: none; -webkit-user-select: none; }
 .puzzle-grid.is-locked { cursor: default; }
 .puzzle-cell { --selection-color: #797979; min-width: 0; min-height: 0; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid var(--cell-border); border-radius: clamp(4px, .8vmin, 8px); background: var(--cell); color: var(--text); font-size: clamp(1rem, 3.8vmin, 1.25rem); font-weight: 760; line-height: 1; text-transform: uppercase; transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, opacity 180ms ease; }
 .puzzle-cell.is-border { opacity: 1; }

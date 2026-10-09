@@ -147,6 +147,7 @@ test("fits the page and toggles from system dark mode on the first click", async
   await page.getByRole("button", { name: "Toggle color mode" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.locator(".puzzle-grid")).toHaveCSS("cursor", "default");
+  await expect(page.locator(".puzzle-cell").first()).toHaveCSS("user-select", "none");
   const cell = await page.locator(".puzzle-cell").first().boundingBox();
   expect(cell!.width).toBeGreaterThanOrEqual(44);
   expect(cell!.height).toBeGreaterThanOrEqual(44);
