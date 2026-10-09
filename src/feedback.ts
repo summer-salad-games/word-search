@@ -11,23 +11,23 @@ interface FeedbackNote {
 
 const NOTES: Readonly<Record<FeedbackKind, readonly FeedbackNote[]>> = {
   cell: [
-    { frequency: 440, endFrequency: 320, delay: 0, duration: 0.042, volume: 0.018, type: "sine" },
-    { frequency: 1_100, endFrequency: 720, delay: 0, duration: 0.016, volume: 0.006, type: "sine" },
+    { frequency: 550, endFrequency: 410, delay: 0, duration: 0.042, volume: 0.024, type: "sine" },
+    { frequency: 1_400, endFrequency: 900, delay: 0, duration: 0.016, volume: 0.009, type: "sine" },
   ],
-  reject: [{ frequency: 260, endFrequency: 185, delay: 0, duration: 0.042, volume: 0.012, type: "sine" }],
+  reject: [{ frequency: 340, endFrequency: 240, delay: 0, duration: 0.042, volume: 0.016, type: "sine" }],
   word: [
-    { frequency: 520, endFrequency: 560, delay: 0, duration: 0.075, volume: 0.02, type: "sine" },
-    { frequency: 780, endFrequency: 830, delay: 0.07, duration: 0.11, volume: 0.017, type: "sine" },
+    { frequency: 620, endFrequency: 680, delay: 0, duration: 0.075, volume: 0.026, type: "sine" },
+    { frequency: 900, endFrequency: 970, delay: 0.07, duration: 0.11, volume: 0.022, type: "sine" },
   ],
   complete: [
-    { frequency: 440, endFrequency: 480, delay: 0, duration: 0.085, volume: 0.019, type: "sine" },
-    { frequency: 660, endFrequency: 710, delay: 0.085, duration: 0.1, volume: 0.018, type: "sine" },
-    { frequency: 880, endFrequency: 940, delay: 0.18, duration: 0.14, volume: 0.016, type: "sine" },
+    { frequency: 520, endFrequency: 570, delay: 0, duration: 0.085, volume: 0.024, type: "sine" },
+    { frequency: 780, endFrequency: 840, delay: 0.085, duration: 0.1, volume: 0.022, type: "sine" },
+    { frequency: 1_040, endFrequency: 1_120, delay: 0.18, duration: 0.14, volume: 0.02, type: "sine" },
   ],
 };
 
 let audioContext: AudioContext | undefined;
-let previousCellFrequency = 420;
+let previousCellFrequency = 530;
 let lastCellFeedbackAt = 0;
 
 function context(): AudioContext | undefined {
@@ -71,9 +71,9 @@ export function playFeedback(kind: FeedbackKind, enabled: boolean): void {
     const now = performance.now();
     if (now - lastCellFeedbackAt < 28) return;
     lastCellFeedbackAt = now;
-    previousCellFrequency = previousCellFrequency === 420 ? 460 : 420;
+    previousCellFrequency = previousCellFrequency === 530 ? 580 : 530;
     playNotes(NOTES.cell.map((note, index) => index === 0
-      ? { ...note, frequency: previousCellFrequency, endFrequency: previousCellFrequency - 120 }
+      ? { ...note, frequency: previousCellFrequency, endFrequency: previousCellFrequency - 140 }
       : note));
     vibrate(6);
     return;
