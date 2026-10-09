@@ -155,11 +155,10 @@ test("fits the page and toggles from system dark mode on the first click", async
     const words = document.querySelector(".word-list")!.getBoundingClientRect();
     const grid = document.querySelector(".puzzle-grid")!.getBoundingClientRect();
     const footer = document.querySelector(".game-footer")!.getBoundingClientRect();
-    const content = document.querySelector(".puzzle-content")!.getBoundingClientRect();
     return {
       headerToWords: words.top - header.bottom,
       wordsToGrid: grid.top - words.bottom,
-      centerOffset: (content.top + content.bottom) / 2 - (header.bottom + footer.top) / 2,
+      centerOffset: (words.top + grid.bottom) / 2 - (header.bottom + footer.top) / 2,
     };
   });
   expect(spacing.headerToWords).toBeGreaterThan(spacing.wordsToGrid);
@@ -191,12 +190,14 @@ test("fits a large iPhone when Safari exposes less height than the physical scre
       puzzleBottom: puzzle.bottom,
       footerTop: footer.top,
       viewportHeight: window.innerHeight,
+      centerOffset: (words.top + puzzle.bottom) / 2 - (header.bottom + footer.top) / 2,
     };
   });
   expect(bounds.headerBottom).toBeLessThan(bounds.wordsTop);
   expect(bounds.wordsBottom).toBeLessThan(bounds.puzzleTop);
   expect(bounds.puzzleBottom).toBeLessThan(bounds.footerTop);
   expect(bounds.footerTop).toBeLessThan(bounds.viewportHeight);
+  expect(Math.abs(bounds.centerOffset)).toBeLessThanOrEqual(1);
   await context.close();
 });
 
