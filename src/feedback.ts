@@ -27,16 +27,14 @@ const NOTES: Readonly<Record<FeedbackKind, readonly FeedbackNote[]>> = {
 };
 
 let audioContext: AudioContext | undefined;
-let audioReady: Promise<AudioContext | undefined> | undefined;
-let audioUnlocked = false;
 let hapticsUnlocked = false;
 let previousCellFrequency = 530;
 let lastCellFeedbackAt = 0;
 
 async function readyContext(): Promise<AudioContext | undefined> {
-  if (!audioUnlocked) return undefined;
   const AudioContextConstructor = window.AudioContext;
   if (AudioContextConstructor === undefined) return undefined;
+  if (audioContext?.state === "closed") audioContext = undefined;
   audioContext ??= new AudioContextConstructor();
   if (audioContext.state === "suspended") {
     try { await audioContext.resume(); }
@@ -48,7 +46,7 @@ async function readyContext(): Promise<AudioContext | undefined> {
 
 async function playNotes(notes: readonly FeedbackNote[]): Promise<void> {
   if (document.hidden) return;
-  const currentContext = await (audioReady ?? readyContext());
+  const currentContext = await readyContext();
   if (currentContext === undefined) return;
   const startedAt = currentContext.currentTime;
   for (const note of notes) {
@@ -73,15 +71,8 @@ function vibrate(pattern: number | readonly number[]): void {
   navigator.vibrate(typeof pattern === "number" ? pattern : [...pattern]);
 }
 
-export function unlockAudio(enabled: boolean): void {
-  if (!enabled || audioUnlocked) return;
-  audioUnlocked = true;
-  audioReady = readyContext().finally(() => { audioReady = undefined; });
-}
-
-export function unlockFeedback(enabled: boolean): void {
+export function markGestureCompleted(enabled: boolean): void {
   if (!enabled) return;
-  unlockAudio(true);
   hapticsUnlocked = true;
 }
 

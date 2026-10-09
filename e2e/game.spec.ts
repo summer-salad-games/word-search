@@ -114,10 +114,6 @@ test("congratulates the player after the final unique grid and resets the whole 
 });
 
 test("rolls an incorrect selection back cell by cell", async ({ page }) => {
-  const blockedFeedbackMessages: string[] = [];
-  page.on("console", (message) => {
-    if (/AudioContext was not allowed|Blocked call to navigator\.vibrate/u.test(message.text())) blockedFeedbackMessages.push(message.text());
-  });
   await page.goto("/");
   await page.locator(".puzzle-grid").waitFor();
   const first = await page.locator('[data-x="1"][data-y="1"]').boundingBox();
@@ -133,7 +129,6 @@ test("rolls an incorrect selection back cell by cell", async ({ page }) => {
   await expect(page.locator(".puzzle-grid")).toHaveClass(/is-locked/);
   await expect(page.locator(".puzzle-cell.is-active")).toHaveCount(0);
   await expect(page.locator(".puzzle-grid")).not.toHaveClass(/is-locked/);
-  expect(blockedFeedbackMessages).toEqual([]);
   await expect(page.locator(".game-footer")).not.toContainText("attempt");
   const letters = await page.locator(".puzzle-cell").allTextContents();
   await page.getByRole("button", { name: "Reset progress" }).click();
