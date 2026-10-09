@@ -67,14 +67,14 @@ describe("application model", () => {
 
   it("resets progress without changing the generated puzzle", () => {
     const session = createSession(THEMES[0]!, calculatePuzzleProfile(390, 844), "reset-test");
-    const progressed = gameReducer(session, { type: "attempt", word: session.targetWords[0]!, color: "#123456", elapsedMs: 12_345 });
+    const progressed = gameReducer(session, { type: "selection", word: session.targetWords[0]!, color: "#123456", letterCount: 6, elapsedMs: 12_345 });
     const reset = resetSession(progressed);
     expect(reset.id).not.toBe(progressed.id);
     expect(reset.puzzle).toBe(progressed.puzzle);
     expect(reset.targetWords).toBe(progressed.targetWords);
     expect(reset.solvedWords).toEqual([]);
     expect(reset.solvedColors).toEqual({});
-    expect(reset.attempts).toBe(0);
+    expect(reset.lettersSelected).toBe(0);
     expect(reset.elapsedMs).toBe(0);
     expect(reset.status).toBe("playing");
   });

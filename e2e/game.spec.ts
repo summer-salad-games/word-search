@@ -35,9 +35,9 @@ async function solveCurrentPuzzle(page: import("@playwright/test").Page) {
     if (wordIndex === 0 && words.length > 1) {
       await page.mouse.click(first!.x + first!.width / 2, first!.y + first!.height / 2);
       await expect(page.locator(".puzzle-cell.is-active")).toHaveCount(0);
-      await expect(page.locator(".game-footer")).toContainText("1 attempts");
     }
   }
+  return words.reduce((total, word) => total + [...word.trim()].length, 0);
 }
 
 test("plays a complete puzzle and persists it to history", async ({ page }) => {
@@ -46,7 +46,7 @@ test("plays a complete puzzle and persists it to history", async ({ page }) => {
   await expect(heading).toBeVisible();
   const themeTitle = (await heading.textContent())!;
   const wordCount = await page.locator(".word-chip").count();
-  await solveCurrentPuzzle(page);
+  const lettersSelected = await solveCurrentPuzzle(page);
   await expect(page.getByRole("dialog", { name: "Nicely found." })).toBeVisible();
   await page.getByRole("button", { name: /Next puzzle/ }).click();
   await expect(heading).not.toHaveText(themeTitle);
@@ -56,7 +56,8 @@ test("plays a complete puzzle and persists it to history", async ({ page }) => {
   const progress = page.getByRole("region", { name: "Global progress" });
   await expect(progress).toContainText("Progress1 / 500");
   await expect(progress).toContainText(`Words found${wordCount}`);
-  await expect(progress).toContainText(`Attempts${wordCount}`);
+  await expect(progress).toContainText(`Letters selected${lettersSelected}`);
+  await expect(history).not.toContainText("Attempts");
 });
 
 test("congratulates the player after the final unique grid and resets the whole playthrough", async ({ page }) => {
@@ -92,10 +93,10 @@ test("congratulates the player after the final unique grid and resets the whole 
   const lifetime = page.getByRole("region", { name: "Lifetime summary" });
   await expect(lifetime).toContainText("Puzzles1");
   await expect(lifetime).toContainText(/Words found\d+/);
-  await expect(lifetime).toContainText(/Attempts\d+/);
+  await expect(lifetime).toContainText(/Letters selected\d+/);
   await page.getByRole("button", { name: /Reset everything/ }).click();
   await expect(page.getByRole("dialog", { name: "You found them all!" })).not.toBeVisible();
-  await expect(page.locator(".game-footer")).toContainText("0 attempts");
+  await expect(page.locator(".game-footer")).toContainText("00:00");
   expect(await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
@@ -128,12 +129,12 @@ test("rolls an incorrect selection back cell by cell", async ({ page }) => {
   await expect(page.locator(".puzzle-grid")).toHaveClass(/is-locked/);
   await expect(page.locator(".puzzle-cell.is-active")).toHaveCount(0);
   await expect(page.locator(".puzzle-grid")).not.toHaveClass(/is-locked/);
-  await expect(page.locator(".game-footer")).toContainText("1 attempts");
+  await expect(page.locator(".game-footer")).not.toContainText("attempt");
   const letters = await page.locator(".puzzle-cell").allTextContents();
   await page.getByRole("button", { name: "Reset progress" }).click();
   await expect(page.getByRole("dialog", { name: "What would you like to reset?" })).toBeVisible();
   await page.getByRole("button", { name: "Reset current board" }).click();
-  await expect(page.locator(".game-footer")).toContainText("0 attempts");
+  await expect(page.locator(".game-footer")).toContainText("00:00");
   expect(await page.locator(".puzzle-cell").allTextContents()).toEqual(letters);
 });
 
@@ -193,7 +194,7 @@ test("fits a large iPhone when Safari exposes less height than the physical scre
       footerTop: footer.top,
       viewportHeight: window.innerHeight,
       centerOffset: (words.top + puzzle.bottom) / 2 - (header.bottom + footer.top) / 2,
-      timerOffset: (timer.left + timer.right) / 2 - (footer.left + footer.right) / 2,
+      timerRightOffset: timer.right - footer.right,
     };
   });
   expect(bounds.headerBottom).toBeLessThan(bounds.wordsTop);
@@ -201,7 +202,7 @@ test("fits a large iPhone when Safari exposes less height than the physical scre
   expect(bounds.puzzleBottom).toBeLessThan(bounds.footerTop);
   expect(bounds.footerTop).toBeLessThan(bounds.viewportHeight);
   expect(Math.abs(bounds.centerOffset)).toBeLessThanOrEqual(1);
-  expect(Math.abs(bounds.timerOffset)).toBeLessThanOrEqual(1);
+  expect(Math.abs(bounds.timerRightOffset)).toBeLessThanOrEqual(1);
   await context.close();
 });
 
@@ -279,7 +280,7 @@ test("can cancel reset or erase all application state", async ({ page }) => {
   await page.getByRole("button", { name: "Reset everything" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect(page.locator(".game-footer")).toContainText("0 attempts");
+  await expect(page.locator(".game-footer")).toContainText("00:00");
   expect(await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);

@@ -11,7 +11,7 @@ export interface HistoryRecord {
   readonly seed: string;
   readonly elapsedMs: number;
   readonly wordCount: number;
-  readonly attempts: number;
+  readonly lettersSelected: number;
   readonly completedAt: string;
   readonly profile: PuzzleProfile;
   readonly generatorVersion: number;
@@ -39,7 +39,7 @@ const puzzleSchema = z.object({
 });
 const sessionSchema = z.object({
   id: z.string(), themeId: z.string(), seed: z.string(), puzzle: puzzleSchema,
-  targetWords: z.array(z.string()), solvedWords: z.array(z.string()), solvedColors: z.record(z.string(), z.string()), attempts: z.number().int().nonnegative(),
+  targetWords: z.array(z.string()), solvedWords: z.array(z.string()), solvedColors: z.record(z.string(), z.string()), lettersSelected: z.number().int().nonnegative(),
   elapsedMs: z.number().nonnegative(), status: z.enum(["playing", "completed"]), profile: profileSchema,
   completedAt: z.string().optional(),
 });
@@ -47,7 +47,7 @@ const persistedSessionSchema = z.object({ generatorVersion: z.number().int(), se
 const completedThemesSchema = z.array(z.string()).transform((ids) => [...new Set(ids)]);
 const historySchema = z.object({
   id: z.string(), themeId: z.string(), themeTitle: z.string(), seed: z.string(), elapsedMs: z.number().nonnegative(),
-  wordCount: z.number().int().nonnegative(), attempts: z.number().int().nonnegative(), completedAt: z.string(),
+  wordCount: z.number().int().nonnegative(), lettersSelected: z.number().int().nonnegative(), completedAt: z.string(),
   profile: profileSchema, generatorVersion: z.number().int(),
 });
 

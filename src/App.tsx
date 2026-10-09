@@ -89,12 +89,12 @@ function useGameTimer(session: GameSession, paused: boolean, onElapsed: (value: 
 interface GridProps {
   readonly session: GameSession;
   readonly colors: ReadonlyMap<string, string>;
-  readonly onAttempt: (path: readonly Position[]) => string | undefined;
-  readonly attemptColor: string;
+  readonly onSelection: (path: readonly Position[]) => string | undefined;
+  readonly currentColor: string;
   readonly debugWords: boolean;
 }
 
-function PuzzleGrid({ session, colors, onAttempt, attemptColor, debugWords }: GridProps) {
+function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords }: GridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const pointerId = useRef<number | null>(null);
   const selectionRef = useRef<Position[]>([]);
@@ -159,7 +159,7 @@ function PuzzleGrid({ session, colors, onAttempt, attemptColor, debugWords }: Gr
     pointerId.current = null;
     const path = selectionRef.current;
     if (path.length === 0) return;
-    const found = onAttempt(path);
+    const found = onSelection(path);
     if (found === undefined) rollback(path);
     else {
       setLocked(true);
@@ -172,7 +172,7 @@ function PuzzleGrid({ session, colors, onAttempt, attemptColor, debugWords }: Gr
     "--grid-rows": session.puzzle.size.height,
     "--preferred-cell": `${session.profile.preferredCellSize}px`,
     "--preferred-grid-width": `${session.puzzle.size.width * session.profile.preferredCellSize + (session.puzzle.size.width - 1) * 4}px`,
-    "--active-color": selectionColor ?? attemptColor,
+    "--active-color": selectionColor ?? currentColor,
   } as CSSProperties;
 
   return (
@@ -188,7 +188,7 @@ function PuzzleGrid({ session, colors, onAttempt, attemptColor, debugWords }: Gr
         if (position === undefined || solvedCells.has(positionKey(position))) return;
         pointerId.current = event.pointerId;
         event.currentTarget.setPointerCapture(event.pointerId);
-        setSelectionColor(attemptColor);
+        setSelectionColor(currentColor);
         selectionRef.current = [position];
         setSelection(selectionRef.current);
       }}
@@ -227,13 +227,13 @@ function summarizeHistory(records: readonly HistoryRecord[]) {
   return records.reduce((result, record) => ({
     elapsedMs: result.elapsedMs + record.elapsedMs,
     words: result.words + record.wordCount,
-    attempts: result.attempts + record.attempts,
-  }), { elapsedMs: 0, words: 0, attempts: 0 });
+    lettersSelected: result.lettersSelected + record.lettersSelected,
+  }), { elapsedMs: 0, words: 0, lettersSelected: 0 });
 }
 
 function historyRecordFor(session: GameSession): HistoryRecord {
   if (session.completedAt === undefined) throw new Error("Cannot create history for an unfinished puzzle.");
-  return { id: session.id, themeId: session.themeId, themeTitle: getTheme(session.themeId).title, seed: session.seed, elapsedMs: session.elapsedMs, wordCount: session.targetWords.length, attempts: session.attempts, completedAt: session.completedAt, profile: session.profile, generatorVersion: GENERATOR_VERSION };
+  return { id: session.id, themeId: session.themeId, themeTitle: getTheme(session.themeId).title, seed: session.seed, elapsedMs: session.elapsedMs, wordCount: session.targetWords.length, lettersSelected: session.lettersSelected, completedAt: session.completedAt, profile: session.profile, generatorVersion: GENERATOR_VERSION };
 }
 
 function HistoryDialog({ records, completedCount, onClose }: { readonly records: readonly HistoryRecord[]; readonly completedCount: number; readonly onClose: () => void }) {
@@ -248,14 +248,14 @@ function HistoryDialog({ records, completedCount, onClose }: { readonly records:
             <div><dt>Progress</dt><dd>{completedCount} / {THEMES.length}</dd></div>
             <div><dt>Total time</dt><dd>{formatDuration(totals.elapsedMs)}</dd></div>
             <div><dt>Words found</dt><dd>{totals.words}</dd></div>
-            <div><dt>Attempts</dt><dd>{totals.attempts}</dd></div>
+            <div><dt>Letters selected</dt><dd>{totals.lettersSelected}</dd></div>
           </dl>
         </section>
         {records.length === 0 ? <p className="empty-state">Complete a puzzle and it will appear here.</p> : (
           <ol className="history-list">{records.map((record) => (
             <li key={record.id}>
               <div><strong>{record.themeTitle}</strong><span>{new Date(record.completedAt).toLocaleDateString()}</span></div>
-              <dl><div><dt>Time</dt><dd>{formatDuration(record.elapsedMs)}</dd></div><div><dt>Words</dt><dd>{record.wordCount}</dd></div><div><dt>Attempts</dt><dd>{record.attempts}</dd></div></dl>
+              <dl><div><dt>Time</dt><dd>{formatDuration(record.elapsedMs)}</dd></div><div><dt>Words</dt><dd>{record.wordCount}</dd></div><div><dt>Letters selected</dt><dd>{record.lettersSelected}</dd></div></dl>
             </li>
           ))}</ol>
         )}
@@ -270,7 +270,7 @@ function WinDialog({ session, onNext }: { readonly session: GameSession; readonl
     <div className="overlay celebration" role="presentation">
       <section className="dialog win-dialog" role="dialog" aria-modal="true" aria-labelledby="win-title">
         <div className="win-mark">✓</div><p className="eyebrow">Puzzle complete</p><h2 id="win-title">Nicely found.</h2><p className="win-theme">{theme.title}</p>
-        <dl className="stats"><div><dt>Time</dt><dd>{formatDuration(session.elapsedMs)}</dd></div><div><dt>Words</dt><dd>{session.targetWords.length}</dd></div><div><dt>Attempts</dt><dd>{session.attempts}</dd></div></dl>
+        <dl className="stats"><div><dt>Time</dt><dd>{formatDuration(session.elapsedMs)}</dd></div><div><dt>Words</dt><dd>{session.targetWords.length}</dd></div><div><dt>Letters selected</dt><dd>{session.lettersSelected}</dd></div></dl>
         <button className="primary-button" onClick={onNext}>Next puzzle <span aria-hidden="true">→</span></button>
       </section>
     </div>
@@ -291,7 +291,7 @@ function CollectionCompleteDialog({ session, records, onReset }: { readonly sess
             <div><dt>Puzzles</dt><dd>{completeRecords.length}</dd></div>
             <div><dt>Total time</dt><dd>{formatDuration(totals.elapsedMs)}</dd></div>
             <div><dt>Words found</dt><dd>{totals.words}</dd></div>
-            <div><dt>Attempts</dt><dd>{totals.attempts}</dd></div>
+            <div><dt>Letters selected</dt><dd>{totals.lettersSelected}</dd></div>
           </dl>
         </section>
         <p className="dialog-copy">Reset everything to clear this summary, your history, preferences, and all progress before starting over.</p>
@@ -336,9 +336,10 @@ function Game({ initialSession, colorMode, isFinalPuzzle, completedCount, lifeti
   const [hidden, setHidden] = useState(document.hidden);
   const [debugWords, setDebugWords] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [selectionIndex, setSelectionIndex] = useState(0);
   const theme = getTheme(session.themeId);
   const colors = useMemo(() => new Map(session.targetWords.map((word, index) => [word, theme.colors[index % theme.colors.length]!])), [session.targetWords, theme.colors]);
-  const attemptColor = theme.colors[session.attempts % theme.colors.length]!;
+  const currentColor = theme.colors[selectionIndex % theme.colors.length]!;
   const { elapsed, getElapsed, pause } = useGameTimer(session, historyOpen || resetOpen || hidden, (value) => dispatch({ type: "set-elapsed", elapsedMs: value }));
 
   useEffect(() => onSession(session), [onSession, session]);
@@ -367,10 +368,11 @@ function Game({ initialSession, colorMode, isFinalPuzzle, completedCount, lifeti
     return () => { if (window.wordSearchDebug === api) delete window.wordSearchDebug; };
   }, [onDebugLoadTheme]);
 
-  const onAttempt = (path: readonly Position[]) => {
+  const onSelection = (path: readonly Position[]) => {
     const match = session.puzzle.entries.find((entry) => !session.solvedWords.includes(entry.word) && pathsMatch(path, entry.path));
     const currentElapsed = getElapsed();
-    dispatch({ type: "attempt", elapsedMs: currentElapsed, color: attemptColor, ...(match === undefined ? {} : { word: match.word }) });
+    dispatch({ type: "selection", elapsedMs: currentElapsed, color: currentColor, letterCount: path.length, ...(match === undefined ? {} : { word: match.word }) });
+    setSelectionIndex((current) => current + 1);
     return match?.word;
   };
 
@@ -390,9 +392,9 @@ function Game({ initialSession, colorMode, isFinalPuzzle, completedCount, lifeti
           const style = solved ? { "--selection-color": session.solvedColors[word] ?? colors.get(word) } as CSSProperties : undefined;
           return <span key={word} className={`word-chip${solved ? " is-solved" : ""}`} style={style}>{word}</span>;
         })}</section>
-        <section className="board-stage"><PuzzleGrid session={session} colors={colors} onAttempt={onAttempt} attemptColor={attemptColor} debugWords={debugWords} /></section>
+        <section className="board-stage"><PuzzleGrid session={session} colors={colors} onSelection={onSelection} currentColor={currentColor} debugWords={debugWords} /></section>
       </div>
-      <footer className="game-footer"><span>{session.solvedWords.length} / {session.targetWords.length} found</span><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span><span>{session.attempts} attempts</span></footer>
+      <footer className="game-footer"><span>{session.solvedWords.length} / {session.targetWords.length} found</span><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span></footer>
       {historyOpen && <HistoryDialog records={history} completedCount={completedCount} onClose={() => setHistoryOpen(false)} />}
       {resetOpen && <ResetDialog onBoard={() => onReset(session)} onEverything={onResetEverything} onClose={() => setResetOpen(false)} />}
       {session.status === "completed" && (isFinalPuzzle

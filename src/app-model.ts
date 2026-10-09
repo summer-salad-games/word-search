@@ -25,7 +25,7 @@ export interface GameSession {
   readonly targetWords: readonly string[];
   readonly solvedWords: readonly string[];
   readonly solvedColors: Readonly<Record<string, string>>;
-  readonly attempts: number;
+  readonly lettersSelected: number;
   readonly elapsedMs: number;
   readonly status: "playing" | "completed";
   readonly profile: PuzzleProfile;
@@ -33,7 +33,7 @@ export interface GameSession {
 }
 
 export type GameAction =
-  | { readonly type: "attempt"; readonly word?: string; readonly color: string; readonly elapsedMs: number }
+  | { readonly type: "selection"; readonly word?: string; readonly color: string; readonly letterCount: number; readonly elapsedMs: number }
   | { readonly type: "set-elapsed"; readonly elapsedMs: number };
 
 export function gameReducer(session: GameSession, action: GameAction): GameSession {
@@ -49,7 +49,7 @@ export function gameReducer(session: GameSession, action: GameAction): GameSessi
     solvedColors: action.word === undefined || session.solvedWords.includes(action.word)
       ? session.solvedColors
       : { ...session.solvedColors, [action.word]: action.color },
-    attempts: session.attempts + 1,
+    lettersSelected: session.lettersSelected + action.letterCount,
     elapsedMs: action.elapsedMs,
     status: completed ? "completed" : "playing",
     ...(completed ? { completedAt: new Date().toISOString() } : {}),
@@ -133,7 +133,7 @@ export function generateCompletePuzzle(theme: PuzzleTheme, profile: PuzzleProfil
 
 export function createSession(theme: PuzzleTheme, profile: PuzzleProfile, seed = randomId()): GameSession {
   const { puzzle, targetWords } = generateCompletePuzzle(theme, profile, seed);
-  return { id: randomId(), themeId: theme.id, seed, puzzle, targetWords, solvedWords: [], solvedColors: {}, attempts: 0, elapsedMs: 0, status: "playing", profile };
+  return { id: randomId(), themeId: theme.id, seed, puzzle, targetWords, solvedWords: [], solvedColors: {}, lettersSelected: 0, elapsedMs: 0, status: "playing", profile };
 }
 
 export function resetSession(session: GameSession): GameSession {
@@ -143,7 +143,7 @@ export function resetSession(session: GameSession): GameSession {
     id: randomId(),
     solvedWords: [],
     solvedColors: {},
-    attempts: 0,
+    lettersSelected: 0,
     elapsedMs: 0,
     status: "playing",
   };

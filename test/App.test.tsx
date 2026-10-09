@@ -14,7 +14,7 @@ describe("App", () => {
     expect(screen.getAllByText(/^[a-z]+$/i).length).toBeGreaterThan(4);
     await user.click(screen.getByRole("button", { name: "Open history" }));
     expect(await screen.findByRole("dialog", { name: "History" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Global progress" })).toHaveTextContent("Progress0 / 500Total time00:00Words found0Attempts0");
+    expect(screen.getByRole("region", { name: "Global progress" })).toHaveTextContent("Progress0 / 500Total time00:00Words found0Letters selected0");
     await user.click(screen.getByRole("button", { name: "Close history" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "History" })).not.toBeInTheDocument());
   });
