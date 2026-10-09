@@ -5,9 +5,6 @@ export interface PuzzleTheme {
   readonly title: string;
   readonly words: readonly string[];
   readonly colors: readonly string[];
-  readonly fillCharacters?: readonly string[];
-  readonly maxWords?: number;
-  readonly rare?: boolean;
 }
 
 const PALETTES: readonly (readonly string[])[] = Object.freeze([
@@ -21,7 +18,8 @@ const PALETTES: readonly (readonly string[])[] = Object.freeze([
   ["#277da1", "#577590", "#43aa8b", "#90be6d", "#f9c74f", "#f94144"],
 ]);
 
-const VARIANTS = ["Essentials", "Explorer", "Discovery", "Challenge", "Collection", "Quest", "Mosaic"] as const;
+const VARIANTS = ["Essentials", "Explorer", "Discovery", "Challenge", "Collection", "Quest", "Mosaic", "Journey"] as const;
+const THEME_TOTAL = 500;
 
 const singleWordTitle = (title: string): string => title.replace(/\s+/gu, "");
 
@@ -34,8 +32,11 @@ function hash(value: string): number {
   return result >>> 0;
 }
 
-const STANDARD_THEMES: readonly PuzzleTheme[] = THEME_BANKS.flatMap((bank, bankIndex) =>
-  VARIANTS.map((variant, variantIndex) => {
+const baseVariantCount = Math.floor(THEME_TOTAL / THEME_BANKS.length);
+const additionalVariantCount = THEME_TOTAL % THEME_BANKS.length;
+
+export const THEMES: readonly PuzzleTheme[] = Object.freeze(THEME_BANKS.flatMap((bank, bankIndex) =>
+  VARIANTS.slice(0, baseVariantCount + Number(bankIndex < additionalVariantCount)).map((variant, variantIndex) => {
     const id = `${bank.id}-${variant.toLowerCase()}`;
     const words = [...bank.words].sort((left, right) => hash(`${id}:${left}`) - hash(`${id}:${right}`)).slice(0, 22);
     return Object.freeze({
@@ -45,47 +46,15 @@ const STANDARD_THEMES: readonly PuzzleTheme[] = THEME_BANKS.flatMap((bank, bankI
       colors: PALETTES[(bankIndex + variantIndex) % PALETTES.length]!,
     });
   }),
-);
+));
 
-const rare = (id: string, title: string, words: string, fillCharacters: string, maxWords?: number): PuzzleTheme => Object.freeze({
-  id: `egg-${id}`,
-  title,
-  words: Object.freeze(words.trim().split(/\s+/u)),
-  colors: PALETTES[hash(id) % PALETTES.length]!,
-  fillCharacters: Object.freeze(fillCharacters.trim().split(/\s+/u)),
-  ...(maxWords === undefined ? {} : { maxWords }),
-  rare: true,
-});
-
-const RARE_THEMES: readonly PuzzleTheme[] = Object.freeze([
-  rare("needle", "Needle", ",", "."),
-  rare("zero", "Zero", "0", "O"),
-  rare("emoji", "Emoji", "😀 😃 😄 😁 😆 😅 😂 😊 😇 🙂 🙃 😉 😌 😍 😎 🤓 🥳 🤩 😴 🤖 👻 👽 🎃 🐵 🦊 🐼 🐸 🐙 🐳 🦋", "🍎 🍋 🍉 🍇 🍓 🍒 🥝 🥕 🌽 🍄 🌵 🌻 🌙 ⭐ ☀ ⚡ ❄ ☁ ☂ ⚽ 🎲 🚗 🚀 ✈ ⌛ ⏰ 🔑 💎 🎁", 12),
-  rare("morse", "Morse", "a·− b−··· c−·−· d−·· e· f··−· g−−· h···· i·· j·−−− k−·− l·−·· m−− n−· o−−− p·−−· q−−·− r·−· s··· t− u··− v···− w·−− x−··− y−·−− z−−··", "○ ● ◦ •", 6),
-  rare("arrows", "Arrows", "↑ → ↓ ← ↖ ↗ ↘ ↙ ↔ ↕ ↜ ↝ ↞ ↟ ↠ ↡ ↢ ↣ ↤ ↥ ↦ ↧ ⇐ ⇑ ⇒ ⇓ ⇔ ⇕", "⇖ ⇗ ⇘ ⇙ ➔ ➜ ➝ ➞", 12),
-  rare("music", "Music", "♩ ♪ ♫ ♬ ♭ ♮ ♯", "• ◦ · ○"),
-  rare("braille", "Braille", "⠁ ⠃ ⠉ ⠙ ⠑ ⠋ ⠛ ⠓ ⠊ ⠚ ⠅ ⠇ ⠍ ⠝ ⠕ ⠏ ⠟ ⠗ ⠎ ⠞ ⠥ ⠧ ⠺ ⠭ ⠽ ⠵", "⡀ ⡄ ⡆ ⡇ ⣀ ⣄ ⣆ ⣇ ⣿", 12),
-  rare("greek", "Greek", "άλφα βήτα γάμμα δέλτα κόσμος μύθος ήλιος σελήνη άστρο γη νερό φωτιά αέρας σοφία νίκη αρμονία μουσική ποίηση θέατρο όνειρο φως χρόνος ψυχή", "α β γ δ ε ζ η θ ι κ λ μ ν ξ ο π ρ σ τ υ φ χ ψ ω", 8),
-  rare("glitch", "Glitch", "err0r gl1tch 0ffline rebo0t c4che c00kie serv3r cl1ent requ3st resp0nse t1meout red1rect br0ken f1xed d3bug tr4ce st4ck c0nsole netw0rk pr0tocol p4cket fe4ture", "# @ % &", 8),
-  rare("palindrome", "Palindrome", "level radar civic rotor kayak refer madam racecar noon tenet stats solos minim reviver repaper deified rotator wow mom dad eye peep toot pop gig", "a e i o u y", 8),
-]);
-
-export const THEMES: readonly PuzzleTheme[] = Object.freeze([...STANDARD_THEMES, ...RARE_THEMES]);
-
-export function selectRandomTheme(completedIds: ReadonlySet<string> = new Set(), random: () => number = Math.random, allowRare = true): PuzzleTheme | undefined {
-  const standard = STANDARD_THEMES.filter((theme) => !completedIds.has(theme.id));
-  const rare = RARE_THEMES.filter((theme) => !completedIds.has(theme.id));
-  if (standard.length === 0 && rare.length === 0) return undefined;
-  const preferRare = allowRare && random() < 0.05;
-  const pool = preferRare
-    ? (rare.length > 0 ? rare : standard)
-    : (standard.length > 0 ? standard : rare);
-  const index = Math.min(pool.length - 1, Math.floor(random() * pool.length));
-  return pool[Math.max(0, index)]!;
+export function selectRandomTheme(completedIds: ReadonlySet<string> = new Set(), random: () => number = Math.random): PuzzleTheme | undefined {
+  const available = THEMES.filter((theme) => !completedIds.has(theme.id));
+  if (available.length === 0) return undefined;
+  const index = Math.min(available.length - 1, Math.floor(random() * available.length));
+  return available[Math.max(0, index)]!;
 }
 
 export function getTheme(themeId: string): PuzzleTheme {
   return THEMES.find((theme) => theme.id === themeId) ?? THEMES[0]!;
 }
-
-export const THEME_COUNTS = Object.freeze({ common: STANDARD_THEMES.length, rare: RARE_THEMES.length, total: THEMES.length });

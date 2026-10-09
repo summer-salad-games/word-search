@@ -59,33 +59,6 @@ test("plays a complete puzzle and persists it to history", async ({ page }) => {
   await expect(progress).toContainText(`Attempts${wordCount}`);
 });
 
-test("solves a one-cell easter egg", async ({ page }) => {
-  await page.goto("/");
-  await page.locator(".puzzle-grid").waitFor();
-  await page.evaluate(async () => {
-    const [{ calculatePuzzleProfile, createSession, GENERATOR_VERSION }, { THEMES }] = await Promise.all([
-      import("/src/app-model.ts"),
-      import("/src/themes.ts"),
-    ]);
-    const theme = THEMES.find(({ id }) => id === "egg-needle")!;
-    const session = createSession(theme, calculatePuzzleProfile(390, 844), "needle-e2e");
-    const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
-    });
-    await new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction("state", "readwrite");
-      transaction.objectStore("state").put({ generatorVersion: GENERATOR_VERSION, session }, "active-game");
-      transaction.oncomplete = () => resolve(); transaction.onerror = () => reject(transaction.error);
-    });
-    db.close();
-  });
-  await page.reload();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Needle");
-  await expect(page.locator(".word-chip")).toHaveText(",");
-  await solveCurrentPuzzle(page);
-  await expect(page.getByRole("dialog", { name: "Nicely found." })).toBeVisible();
-});
-
 test("congratulates the player after the final unique grid and resets the whole playthrough", async ({ page }) => {
   await page.goto("/");
   await page.locator(".puzzle-grid").waitFor();
@@ -237,8 +210,8 @@ test("exposes console-only word highlighting in both color modes", async ({ page
 test("loads a requested theme through the console debug API", async ({ page }) => {
   await page.goto("/");
   await page.locator(".puzzle-grid").waitFor();
-  expect(await page.evaluate(() => window.wordSearchDebug?.loadTheme("Emoji"))).toBe("egg-emoji");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Emoji");
+  expect(await page.evaluate(() => window.wordSearchDebug?.loadTheme("nature-essentials"))).toBe("nature-essentials");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Nature");
   await expect(page.locator(".word-chip")).toHaveCount(6);
 });
 
