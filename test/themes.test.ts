@@ -6,6 +6,7 @@ describe("theme catalog", () => {
   it("contains 500 ordinary themes", () => {
     expect(THEMES).toHaveLength(500);
     expect(new Set(THEMES.map(({ id }) => id)).size).toBe(500);
+    expect(new Set(THEMES.map(({ title }) => title)).size).toBe(500);
     expect(THEMES.every(({ title }) => /^\S+$/u.test(title))).toBe(true);
     expect(THEMES.some(({ id }) => id === "nature-journey")).toBe(true);
   });
@@ -13,6 +14,7 @@ describe("theme catalog", () => {
   it("contains valid, unique content in every theme", () => {
     for (const theme of THEMES) {
       expect(theme.words.length, theme.id).toBeGreaterThanOrEqual(20);
+      expect(theme.words.every((word) => /^[a-z]+$/u.test(word)), theme.id).toBe(true);
       expect(new Set(theme.words.map((word) => word.normalize("NFC").trim().toLocaleLowerCase("und"))).size, theme.id).toBe(theme.words.length);
       expect(theme.colors.length, theme.id).toBeGreaterThanOrEqual(6);
     }
@@ -38,6 +40,7 @@ describe("theme catalog", () => {
       const result = generateCompletePuzzle(theme, profile, `catalog-mobile:${theme.id}`);
       expect(result.puzzle.unplacedWords, theme.id).toEqual([]);
       expect(result.targetWords.length, theme.id).toBeGreaterThanOrEqual(Math.min(4, theme.words.length));
+      expect(result.puzzle.grid.flat().every((cell) => /^[a-z]$/u.test(cell.letter)), theme.id).toBe(true);
     }
   }, 30_000);
 

@@ -41,7 +41,7 @@ export const THEMES: readonly PuzzleTheme[] = Object.freeze(THEME_BANKS.flatMap(
     const words = [...bank.words].sort((left, right) => hash(`${id}:${left}`) - hash(`${id}:${right}`)).slice(0, 22);
     return Object.freeze({
       id,
-      title: singleWordTitle(bank.title),
+      title: singleWordTitle(variantIndex === 0 ? bank.title : `${bank.title}${variant}`),
       words: Object.freeze(words),
       colors: PALETTES[(bankIndex + variantIndex) % PALETTES.length]!,
     });
