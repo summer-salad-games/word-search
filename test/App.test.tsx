@@ -10,7 +10,7 @@ describe("App", () => {
     expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
     expect(screen.getByText("1.0.0")).toBeInTheDocument();
     const grid = await screen.findByRole("grid");
-    expect(grid.querySelectorAll("[role=gridcell]").length).toBeGreaterThan(70);
+    expect(grid.querySelectorAll("[role=gridcell]").length).toBeGreaterThanOrEqual(70);
     expect(screen.getAllByText(/^[a-z]+$/i).length).toBeGreaterThan(4);
     await user.click(screen.getByRole("button", { name: "Open history" }));
     expect(await screen.findByRole("dialog", { name: "History" })).toBeInTheDocument();

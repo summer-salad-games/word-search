@@ -166,6 +166,39 @@ test("fits the page and toggles from system dark mode on the first click", async
   expect(Math.abs(spacing.centerOffset)).toBeLessThanOrEqual(1);
 });
 
+test("fits a large iPhone when Safari exposes less height than the physical screen", async ({ browser }) => {
+  const context = await browser.newContext({
+    viewport: { width: 430, height: 740 },
+    screen: { width: 430, height: 932 },
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  const grid = page.locator(".puzzle-grid");
+  await expect(grid).toHaveAttribute("aria-label", /^7 by 10/);
+  const bounds = await page.evaluate(() => {
+    const header = document.querySelector(".topbar")!.getBoundingClientRect();
+    const words = document.querySelector(".word-list")!.getBoundingClientRect();
+    const puzzle = document.querySelector(".puzzle-grid")!.getBoundingClientRect();
+    const footer = document.querySelector(".game-footer")!.getBoundingClientRect();
+    return {
+      headerBottom: header.bottom,
+      wordsTop: words.top,
+      wordsBottom: words.bottom,
+      puzzleTop: puzzle.top,
+      puzzleBottom: puzzle.bottom,
+      footerTop: footer.top,
+      viewportHeight: window.innerHeight,
+    };
+  });
+  expect(bounds.headerBottom).toBeLessThan(bounds.wordsTop);
+  expect(bounds.wordsBottom).toBeLessThan(bounds.puzzleTop);
+  expect(bounds.puzzleBottom).toBeLessThan(bounds.footerTop);
+  expect(bounds.footerTop).toBeLessThan(bounds.viewportHeight);
+  await context.close();
+});
+
 test("uses the screen only at creation and keeps a resumed board unchanged", async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, screen: { width: 1440, height: 1000 } });
   const page = await context.newPage();

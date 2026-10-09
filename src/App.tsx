@@ -30,7 +30,9 @@ function Icon({ name }: { readonly name: "history" | "reset" | "moon" | "sun" | 
 }
 
 function profileForCurrentScreen() {
-  return calculatePuzzleProfile(window.screen.width, window.screen.height);
+  const width = Math.min(window.screen.width, window.innerWidth);
+  const height = window.visualViewport?.height ?? window.innerHeight;
+  return calculatePuzzleProfile(width, height);
 }
 
 function useMobileLandscape(): boolean {
@@ -169,7 +171,6 @@ function PuzzleGrid({ session, colors, onAttempt, attemptColor, debugWords }: Gr
     "--grid-columns": session.puzzle.size.width,
     "--grid-rows": session.puzzle.size.height,
     "--preferred-cell": `${session.profile.preferredCellSize}px`,
-    "--preferred-grid-width": `${session.puzzle.size.width * session.profile.preferredCellSize + (session.puzzle.size.width - 1) * 4}px`,
     "--active-color": selectionColor ?? attemptColor,
   } as CSSProperties;
 
