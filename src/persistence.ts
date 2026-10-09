@@ -18,7 +18,7 @@ export interface HistoryRecord {
 }
 
 interface WordSearchDatabase extends DBSchema {
-  state: { key: "active-game" | "color-mode" | "completed-themes"; value: unknown };
+  state: { key: "active-game" | "color-mode" | "completed-themes" | "feedback-enabled"; value: unknown };
   history: { key: string; value: HistoryRecord; indexes: { "by-completed": string } };
 }
 
@@ -88,6 +88,15 @@ export async function loadColorMode(): Promise<ColorMode> {
 
 export async function saveColorMode(mode: ColorMode): Promise<void> {
   await (await database).put("state", mode, "color-mode");
+}
+
+export async function loadFeedbackEnabled(): Promise<boolean> {
+  const value = await (await database).get("state", "feedback-enabled");
+  return typeof value === "boolean" ? value : true;
+}
+
+export async function saveFeedbackEnabled(enabled: boolean): Promise<void> {
+  await (await database).put("state", enabled, "feedback-enabled");
 }
 
 export async function saveCompletion(record: HistoryRecord): Promise<readonly string[]> {

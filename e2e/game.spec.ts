@@ -167,6 +167,15 @@ test("fits the page and toggles from system dark mode on the first click", async
   expect(Math.abs(spacing.centerOffset)).toBeLessThanOrEqual(1);
 });
 
+test("persists the sound and haptics preference", async ({ page }) => {
+  await page.goto("/");
+  await page.locator(".puzzle-grid").waitFor();
+  await page.getByRole("button", { name: "Disable sound and haptics" }).click();
+  await expect(page.getByRole("button", { name: "Enable sound and haptics" })).toHaveAttribute("aria-pressed", "false");
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Enable sound and haptics" })).toBeVisible();
+});
+
 test("fits a large iPhone when Safari exposes less height than the physical screen", async ({ browser }) => {
   const context = await browser.newContext({
     viewport: { width: 430, height: 740 },

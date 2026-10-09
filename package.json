@@ -1,6 +1,6 @@
 {
   "name": "@summer-salad-games/word-search",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Responsive client-side word search game",
   "type": "module",
   "sideEffects": false,

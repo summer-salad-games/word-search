@@ -8,10 +8,13 @@ describe("App", () => {
     const user = userEvent.setup();
     render(<App />);
     expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
-    expect(screen.getByText("1.0.0")).toBeInTheDocument();
+    expect(screen.getByText("1.1.0")).toBeInTheDocument();
     const grid = await screen.findByRole("grid");
     expect(grid.querySelectorAll("[role=gridcell]").length).toBeGreaterThanOrEqual(70);
     expect(screen.getAllByText(/^[a-z]+$/i).length).toBeGreaterThan(4);
+    const feedbackButton = screen.getByRole("button", { name: "Disable sound and haptics" });
+    await user.click(feedbackButton);
+    expect(screen.getByRole("button", { name: "Enable sound and haptics" })).toHaveAttribute("aria-pressed", "false");
     await user.click(screen.getByRole("button", { name: "Open history" }));
     expect(await screen.findByRole("dialog", { name: "History" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Global progress" })).toHaveTextContent("Progress0 / 500Total time00:00Words found0Letters0");

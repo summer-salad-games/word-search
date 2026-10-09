@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { calculatePuzzleProfile, createSession, extendSelection, formatCount, formatDuration, gameReducer, pathsMatch, positionKey, resetSession, GENERATOR_VERSION, type GameSession } from "./app-model.js";
-import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, type ColorMode, type HistoryRecord } from "./persistence.js";
+import { playFeedback } from "./feedback.js";
+import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadFeedbackEnabled, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, saveFeedbackEnabled, type ColorMode, type HistoryRecord } from "./persistence.js";
 import { getTheme, selectRandomTheme, THEMES } from "./themes.js";
 import type { Position, PuzzleCell } from "./types.js";
 import "./styles.css";
@@ -16,13 +17,15 @@ declare global {
   interface Window { wordSearchDebug?: WordSearchDebugApi }
 }
 
-function Icon({ name }: { readonly name: "history" | "reset" | "moon" | "sun" | "close" }) {
+function Icon({ name }: { readonly name: "history" | "reset" | "moon" | "sun" | "close" | "feedback" | "muted" }) {
   const paths = {
     history: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></>,
     moon: <path d="M20 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/>,
     sun: <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></>,
     close: <path d="m6 6 12 12M18 6 6 18"/>,
     reset: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></>,
+    feedback: <><path d="M11 5 6 9H2v6h4l5 4Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12"/></>,
+    muted: <><path d="M11 5 6 9H2v6h4l5 4Z"/><path d="m16 9 5 5M21 9l-5 5"/></>,
   } as const;
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
@@ -137,9 +140,10 @@ interface GridProps {
   readonly onSelection: (path: readonly Position[]) => string | undefined;
   readonly currentColor: string;
   readonly debugWords: boolean;
+  readonly onCellFeedback: (kind: "cell" | "reject") => void;
 }
 
-function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords }: GridProps) {
+function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords, onCellFeedback }: GridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const pointerId = useRef<number | null>(null);
   const selectionRef = useRef<Position[]>([]);
@@ -159,12 +163,13 @@ function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords }: 
   }, [colors, session.puzzle.entries, session.solvedColors, session.solvedWords]);
 
   const addCell = useCallback((position: Position) => {
-    if (!locked && !solvedCells.has(positionKey(position))) setSelection((current) => {
-      const next = extendSelection(current, position);
-      selectionRef.current = next;
-      return next;
-    });
-  }, [locked, solvedCells]);
+    if (locked || solvedCells.has(positionKey(position))) return;
+    const current = selectionRef.current;
+    const next = extendSelection(current, position);
+    if (next.length !== current.length) onCellFeedback("cell");
+    selectionRef.current = next;
+    setSelection(next);
+  }, [locked, onCellFeedback, solvedCells]);
 
   const positionFromPointer = (event: PointerEvent<HTMLDivElement>): Position | undefined => {
     const element = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-cell]");
@@ -187,6 +192,7 @@ function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords }: 
         setLocked(false);
         return;
       }
+      onCellFeedback("reject");
       setRejectingCell(positionKey(last));
       window.setTimeout(() => {
         remaining.pop();
@@ -196,7 +202,7 @@ function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords }: 
       }, 58);
     };
     step();
-  }, []);
+  }, [onCellFeedback]);
 
   const finish = () => {
     if (pointerId.current === null || locked) return;
@@ -237,6 +243,7 @@ function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords }: 
         setSelectionColor(currentColor);
         selectionRef.current = [position];
         setSelection(selectionRef.current);
+        onCellFeedback("cell");
       }}
       onPointerMove={(event) => {
         if (pointerId.current !== event.pointerId || locked) return;
@@ -249,7 +256,13 @@ function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords }: 
       {session.puzzle.grid.flatMap((row) => row.map((cell: PuzzleCell) => {
         const key = positionKey(cell.position);
         const solvedColor = solvedCells.get(key);
-        const cellStyle = solvedColor === undefined ? undefined : { "--selection-color": solvedColor } as CSSProperties;
+        const centerX = (session.puzzle.size.width - 1) / 2;
+        const centerY = (session.puzzle.size.height - 1) / 2;
+        const entranceDelay = Math.round((Math.abs(cell.position.x - centerX) + Math.abs(cell.position.y - centerY)) * 7);
+        const cellStyle = {
+          "--cell-delay": `${entranceDelay}ms`,
+          ...(solvedColor === undefined ? {} : { "--selection-color": solvedColor }),
+        } as CSSProperties;
         return (
           <div
             key={key}
@@ -357,8 +370,9 @@ function ResetDialog({ onBoard, onEverything, onClose }: {
   );
 }
 
-function Game({ initialSession, colorMode, isFinalPuzzle, completedCount, lifetimeRecords, onColorMode, onSession, onComplete, onNext, onReset, onResetEverything, onDebugLoadTheme }: {
+function Game({ initialSession, colorMode, feedbackEnabled, isFinalPuzzle, completedCount, lifetimeRecords, onColorMode, onFeedbackEnabled, onSession, onComplete, onNext, onReset, onResetEverything, onDebugLoadTheme }: {
   readonly initialSession: GameSession; readonly colorMode: ColorMode; readonly onColorMode: (mode: ColorMode) => void;
+  readonly feedbackEnabled: boolean; readonly onFeedbackEnabled: (enabled: boolean) => void;
   readonly isFinalPuzzle: boolean;
   readonly completedCount: number;
   readonly lifetimeRecords: readonly HistoryRecord[];
@@ -379,6 +393,7 @@ function Game({ initialSession, colorMode, isFinalPuzzle, completedCount, lifeti
   const colors = useMemo(() => new Map(session.targetWords.map((word, index) => [word, theme.colors[index % theme.colors.length]!])), [session.targetWords, theme.colors]);
   const currentColor = theme.colors[selectionIndex % theme.colors.length]!;
   const { elapsed, getElapsed, pause } = useGameTimer(session, historyOpen || resetOpen || hidden, (value) => dispatch({ type: "set-elapsed", elapsedMs: value }));
+  const cellFeedback = useCallback((kind: "cell" | "reject") => playFeedback(kind, feedbackEnabled), [feedbackEnabled]);
 
   useEffect(() => onSession(session), [onSession, session]);
   useEffect(() => {
@@ -410,6 +425,9 @@ function Game({ initialSession, colorMode, isFinalPuzzle, completedCount, lifeti
     const match = session.puzzle.entries.find((entry) => !session.solvedWords.includes(entry.word) && pathsMatch(path, entry.path));
     const currentElapsed = getElapsed();
     dispatch({ type: "selection", elapsedMs: currentElapsed, color: currentColor, letterCount: path.length, ...(match === undefined ? {} : { word: match.word }) });
+    if (match !== undefined) {
+      playFeedback(session.solvedWords.length + 1 === session.targetWords.length ? "complete" : "word", feedbackEnabled);
+    }
     setSelectionIndex((current) => current + 1);
     return match?.word;
   };
@@ -423,14 +441,17 @@ function Game({ initialSession, colorMode, isFinalPuzzle, completedCount, lifeti
 
   return (
     <main className={`app-shell${session.profile.columns < 8 ? " mobile-layout" : ""}`}>
-      <header className="topbar"><div><p className="eyebrow game-label"><span>Word search</span><span className="version-tag">{__APP_VERSION__}</span></p><h1>{theme.title}</h1></div><div className="topbar-actions"><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
+      <header className="topbar"><div><p className="eyebrow game-label"><span>Word search</span><span className="version-tag">{__APP_VERSION__}</span></p><h1>{theme.title}</h1></div><div className="topbar-actions"><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => { const enabled = !feedbackEnabled; onFeedbackEnabled(enabled); if (enabled) playFeedback("word", true); }} aria-label={feedbackEnabled ? "Disable sound and haptics" : "Enable sound and haptics"} aria-pressed={feedbackEnabled}><Icon name={feedbackEnabled ? "feedback" : "muted"} /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
       <div className="puzzle-content">
-        <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
+        <section className="word-list" aria-label="Words to find">{session.targetWords.map((word, index) => {
           const solved = session.solvedWords.includes(word);
-          const style = solved ? { "--selection-color": session.solvedColors[word] ?? colors.get(word) } as CSSProperties : undefined;
+          const style = {
+            "--word-delay": `${Math.min(index * 18, 180)}ms`,
+            ...(solved ? { "--selection-color": session.solvedColors[word] ?? colors.get(word) } : {}),
+          } as CSSProperties;
           return <span key={word} className={`word-chip${solved ? " is-solved" : ""}`} style={style}>{word}</span>;
         })}</section>
-        <section className="board-stage"><PuzzleGrid session={session} colors={colors} onSelection={onSelection} currentColor={currentColor} debugWords={debugWords} /></section>
+        <section className="board-stage"><PuzzleGrid session={session} colors={colors} onSelection={onSelection} currentColor={currentColor} debugWords={debugWords} onCellFeedback={cellFeedback} /></section>
       </div>
       <footer className="game-footer"><span>{session.solvedWords.length} / {session.targetWords.length} found</span><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span></footer>
       {historyOpen && <HistoryDialog records={history} completedCount={completedCount} onClose={() => setHistoryOpen(false)} />}
@@ -446,17 +467,19 @@ export default function App() {
   const mobileLandscape = useMobileLandscape();
   const [session, setSession] = useState<GameSession>();
   const [colorMode, setColorMode] = useState<ColorMode>("system");
+  const [feedbackEnabled, setFeedbackEnabled] = useState(true);
   const [completedThemeIds, setCompletedThemeIds] = useState<readonly string[]>([]);
   const [lifetimeRecords, setLifetimeRecords] = useState<readonly HistoryRecord[]>([]);
   const [error, setError] = useState<string>();
 
   useEffect(() => {
-    void Promise.all([loadActiveGame(), loadColorMode(), loadCompletedThemeIds(), loadHistory()]).then(([active, mode, persistedCompleted, persistedHistory]) => {
+    void Promise.all([loadActiveGame(), loadColorMode(), loadFeedbackEnabled(), loadCompletedThemeIds(), loadHistory()]).then(([active, mode, persistedFeedbackEnabled, persistedCompleted, persistedHistory]) => {
       const resolvedMode = mode === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode;
       const knownIds = new Set(THEMES.map((theme) => theme.id));
       const completed = persistedCompleted.filter((id) => knownIds.has(id));
       const activeGame = active !== undefined && knownIds.has(active.themeId) ? active : undefined;
       setColorMode(resolvedMode);
+      setFeedbackEnabled(persistedFeedbackEnabled);
       setCompletedThemeIds(completed);
       setLifetimeRecords(persistedHistory);
       try {
@@ -476,6 +499,7 @@ export default function App() {
   }, [colorMode]);
 
   const updateMode = (mode: ColorMode) => { setColorMode(mode); void saveColorMode(mode); };
+  const updateFeedbackEnabled = (enabled: boolean) => { setFeedbackEnabled(enabled); void saveFeedbackEnabled(enabled); };
   const updateSession = useCallback((next: GameSession) => { setSession(next); void saveActiveGame(next); }, []);
   const resetProgress = useCallback((current: GameSession) => {
     const reset = resetSession(current);
@@ -487,6 +511,7 @@ export default function App() {
       const mode: ColorMode = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
       const fresh = createSession(selectRandomTheme()!, profileForCurrentScreen());
       setColorMode(mode);
+      setFeedbackEnabled(true);
       setCompletedThemeIds([]);
       setLifetimeRecords([]);
       setSession(fresh);
@@ -532,5 +557,5 @@ export default function App() {
   if (error !== undefined) return <main className="loading-screen"><p className="eyebrow">Something went wrong</p><h1>{error}</h1><button className="primary-button" onClick={() => location.reload()}>Try again</button></main>;
   if (session === undefined) return <main className="loading-screen"><div className="loader"/><p>Preparing your puzzle…</p></main>;
   const completedBeforeCurrent = completedThemeIds.filter((id) => id !== session.themeId).length;
-  return <Game key={session.id} initialSession={session} colorMode={colorMode} isFinalPuzzle={completedBeforeCurrent === THEMES.length - 1} completedCount={completedThemeIds.length} lifetimeRecords={lifetimeRecords} onColorMode={updateMode} onSession={updateSession} onComplete={completePuzzle} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything} onDebugLoadTheme={loadDebugTheme}/>;
+  return <Game key={session.id} initialSession={session} colorMode={colorMode} feedbackEnabled={feedbackEnabled} isFinalPuzzle={completedBeforeCurrent === THEMES.length - 1} completedCount={completedThemeIds.length} lifetimeRecords={lifetimeRecords} onColorMode={updateMode} onFeedbackEnabled={updateFeedbackEnabled} onSession={updateSession} onComplete={completePuzzle} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything} onDebugLoadTheme={loadDebugTheme}/>;
 }
