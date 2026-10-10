@@ -3,7 +3,7 @@ import { calculatePuzzleProfile, createSession, extendSelection, formatCount, fo
 import { playFeedback, startFeedback } from "./feedback.js";
 import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadFeedbackEnabled, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, saveFeedbackEnabled, type ColorMode, type HistoryRecord } from "./persistence.js";
 import { getTheme, SELECTION_COLORS, selectRandomTheme, THEMES } from "./themes.js";
-import { createStartMenuGrid } from "./start-menu.js";
+import { changeStartMenuLetters, createStartMenuGrid } from "./start-menu.js";
 import type { Position, PuzzleCell } from "./types.js";
 import "./styles.css";
 
@@ -38,6 +38,34 @@ function StartScreen({ hasProgress, feedbackEnabled, onStart }: {
 }) {
   const [starting, setStarting] = useState(false);
   const grid = useMemo(() => createStartMenuGrid(window.innerWidth, window.innerHeight, SELECTION_COLORS), []);
+  const [changedLetters, setChangedLetters] = useState<ReadonlyMap<string, string>>(() => new Map());
+
+  useEffect(() => {
+    const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+    let timer: number | undefined;
+    const randomValue = () => {
+      const value = new Uint32Array(1);
+      crypto.getRandomValues(value);
+      return value[0]!;
+    };
+    const schedule = () => {
+      if (reducedMotion.matches) return;
+      timer = window.setTimeout(() => {
+        if (!document.hidden) setChangedLetters((current) => changeStartMenuLetters(grid.cells, current, 2 + randomValue() % 2));
+        schedule();
+      }, 700 + randomValue() % 301);
+    };
+    const update = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      schedule();
+    };
+    reducedMotion.addEventListener("change", update);
+    schedule();
+    return () => {
+      reducedMotion.removeEventListener("change", update);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [grid.cells]);
 
   const start = async () => {
     if (starting) return;
@@ -48,16 +76,22 @@ function StartScreen({ hasProgress, feedbackEnabled, onStart }: {
 
   const gridStyle = { "--menu-columns": grid.columns, "--menu-rows": grid.rows } as CSSProperties;
   return <main className="start-screen" style={gridStyle}>
-    {grid.cells.map((cell) => <span
-      key={`${cell.x},${cell.y}`}
-      className={`menu-cell${cell.color === undefined ? "" : " is-selected"}`}
+    {grid.cells.map((cell) => {
+      const key = `${cell.x},${cell.y}`;
+      const letter = changedLetters.get(key) ?? cell.letter;
+      return <span
+      key={key}
+      className={`menu-cell${cell.color === undefined ? "" : " is-selected"}${changedLetters.has(key) ? " is-changing" : ""}`}
       style={{
         gridColumn: cell.x + 1,
         gridRow: cell.y + 1,
         ...(cell.color === undefined ? {} : { "--selection-color": cell.color }),
       } as CSSProperties}
+      data-menu-cell="true"
+      data-selected={cell.color === undefined ? undefined : "true"}
       aria-hidden="true"
-    >{cell.letter}</span>)}
+    ><span key={letter}>{letter}</span></span>;
+    })}
     <button
       className="start-button"
       style={{ gridColumn: `${grid.actionColumn + 1} / span ${grid.actionSpan}`, gridRow: grid.actionRow + 1 }}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createStartMenuGrid } from "../src/start-menu.js";
+import { changeStartMenuLetters, createStartMenuGrid } from "../src/start-menu.js";
 
 function seededRandom(seed: number): () => number {
   let state = seed >>> 0;
@@ -36,5 +36,18 @@ describe("start menu grid", () => {
     expect(containsWord(grid, "SEARCH")).toBe(true);
     expect(grid.cells.every(({ x, y }) => !actionKeys.has(`${x},${y}`))).toBe(true);
     expect(new Set(grid.cells.flatMap(({ color }) => color === undefined ? [] : [color])).size).toBe(2);
+  });
+
+  it("changes only the requested number of ordinary letters", () => {
+    const grid = createStartMenuGrid(390, 844, ["#111", "#222", "#333"], seededRandom(19));
+    const changes = changeStartMenuLetters(grid.cells, new Map(), 3, seededRandom(23));
+    const selectedKeys = new Set(grid.cells.filter(({ color }) => color !== undefined).map(({ x, y }) => `${x},${y}`));
+
+    expect(changes.size).toBe(3);
+    expect([...changes.keys()].every((key) => !selectedKeys.has(key))).toBe(true);
+    for (const [key, letter] of changes) {
+      const original = grid.cells.find(({ x, y }) => `${x},${y}` === key)!.letter;
+      expect(letter).not.toBe(original);
+    }
   });
 });

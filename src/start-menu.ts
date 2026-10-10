@@ -90,3 +90,24 @@ export function createStartMenuGrid(
 
   return { columns, rows, actionColumn, actionRow, actionSpan, cells };
 }
+
+export function changeStartMenuLetters(
+  cells: readonly StartMenuCell[],
+  current: ReadonlyMap<string, string>,
+  count: number,
+  random: () => number = cryptoRandom,
+): ReadonlyMap<string, string> {
+  const ordinary = cells.filter(({ color }) => color === undefined);
+  const changed = new Set<string>();
+  const next = new Map(current);
+  while (changed.size < Math.min(count, ordinary.length)) {
+    const cell = ordinary[randomIndex(ordinary.length, random)]!;
+    const key = `${cell.x},${cell.y}`;
+    if (changed.has(key)) continue;
+    changed.add(key);
+    const previous = next.get(key) ?? cell.letter;
+    const previousIndex = LETTERS.indexOf(previous);
+    next.set(key, LETTERS[(previousIndex + 1 + randomIndex(LETTERS.length - 1, random)) % LETTERS.length]!);
+  }
+  return next;
+}

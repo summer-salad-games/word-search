@@ -12,6 +12,7 @@
   --cell-border: #e4e4e0;
   --debug-cell: #777a7d;
   --debug-text: #ffffff;
+  --menu-veil: 245 245 243;
   --shadow: 0 24px 70px rgb(24 24 20 / 0.12);
   background: var(--background);
   color: var(--text);
@@ -29,6 +30,7 @@
   --cell-border: #303230;
   --debug-cell: #a0a3a6;
   --debug-text: #111211;
+  --menu-veil: 17 18 17;
   --shadow: 0 24px 70px rgb(0 0 0 / 0.35);
 }
 
@@ -37,10 +39,12 @@ html, body, #root { width: 100%; min-width: 280px; height: 100%; margin: 0; over
 body { height: 100dvh; background: var(--background); transition: background-color 180ms ease, color 180ms ease; }
 button { font: inherit; }
 
-.start-screen { --menu-gap: clamp(2px, .45vmin, 5px); width: 100%; height: 100dvh; display: grid; grid-template-columns: repeat(var(--menu-columns), minmax(0, 1fr)); grid-template-rows: repeat(var(--menu-rows), minmax(0, 1fr)); gap: var(--menu-gap); overflow: hidden; padding: var(--menu-gap); user-select: none; -webkit-user-select: none; }
+.start-screen { --menu-gap: clamp(2px, .45vmin, 5px); isolation: isolate; width: 100%; height: 100dvh; display: grid; grid-template-columns: repeat(var(--menu-columns), minmax(0, 1fr)); grid-template-rows: repeat(var(--menu-rows), minmax(0, 1fr)); gap: var(--menu-gap); overflow: hidden; padding: var(--menu-gap); user-select: none; -webkit-user-select: none; }
+.start-screen::after { content: ""; position: fixed; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(circle at center, transparent 18%, rgb(var(--menu-veil) / .08) 38%, rgb(var(--menu-veil) / .5) 100%); }
 .menu-cell { min-width: 0; min-height: 0; display: grid; place-items: center; border: 1px solid var(--cell-border); border-radius: clamp(4px, .8vmin, 8px); background: var(--cell); color: var(--text); font-size: clamp(.72rem, 2.6vmin, 1.12rem); font-weight: 760; line-height: 1; }
-.menu-cell.is-selected { border-color: var(--selection-color); background: var(--selection-color); color: #fff; }
-.start-button { z-index: 2; min-width: 0; min-height: 0; padding: 0 8px; border: 1px solid var(--text); border-radius: clamp(4px, .8vmin, 8px); background: var(--surface); color: var(--text); font-size: clamp(.76rem, 2.4vmin, 1rem); font-weight: 800; letter-spacing: .04em; text-transform: uppercase; cursor: pointer; transition: background-color 130ms ease, color 130ms ease, transform 130ms ease, opacity 130ms ease; }
+.menu-cell.is-selected { z-index: 2; border-color: var(--selection-color); background: var(--selection-color); color: #fff; }
+.menu-cell.is-changing span { animation: menu-letter-in 180ms ease-out; }
+.start-button { z-index: 3; min-width: 0; min-height: 0; padding: 0 8px; border: 1px solid var(--text); border-radius: clamp(4px, .8vmin, 8px); background: var(--text); color: var(--background); font-size: clamp(.76rem, 2.4vmin, 1rem); font-weight: 800; letter-spacing: .04em; text-transform: uppercase; cursor: pointer; animation: start-focus 2.8s ease-in-out infinite; transition: filter 130ms ease, transform 130ms ease, opacity 130ms ease; }
 .start-button:active { transform: scale(.96); }
 .start-button:disabled { cursor: wait; opacity: .68; }
 
@@ -131,7 +135,7 @@ dd { margin: 0; font-weight: 720; font-variant-numeric: tabular-nums; }
 .primary-button:active { transform: scale(.97); }
 .secondary-button { min-height: 48px; padding: 0 22px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--text); font-weight: 720; cursor: pointer; }
 @media (hover: hover) and (pointer: fine) {
-  .start-button:hover { background: var(--text); color: var(--background); }
+  .start-button:hover { filter: brightness(1.18); }
   .icon-button:hover { background: var(--surface-soft); transform: translateY(-1px); }
   .primary-button:hover { transform: translateY(-1px); }
   .secondary-button:hover { background: var(--surface-soft); }
@@ -151,6 +155,8 @@ dd { margin: 0; font-weight: 720; font-variant-numeric: tabular-nums; }
 @keyframes dialog-in { from { opacity: 0; transform: translateY(12px) scale(.97); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes band-enter { from { opacity: 0; transform: translateY(5px); } }
+@keyframes menu-letter-in { from { opacity: .2; transform: scale(.82); } }
+@keyframes start-focus { 50% { box-shadow: 0 0 0 2px var(--line); } }
 
 .app-shell.mobile-layout { padding-inline: 12px; gap: 10px; }
 .mobile-layout .icon-button { width: 38px; height: 38px; }

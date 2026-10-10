@@ -48,6 +48,26 @@ async function solveCurrentPuzzle(page: import("@playwright/test").Page) {
   return words.reduce((total, word) => total + [...word.trim()].length, 0);
 }
 
+test("focuses the dynamic start grid on its centered action", async ({ page }) => {
+  await page.goto("/");
+  const button = page.getByRole("button", { name: "New Game" });
+  await expect(button).toBeVisible();
+  const buttonBox = await button.boundingBox();
+  const viewport = page.viewportSize()!;
+  expect(Math.abs(buttonBox!.x + buttonBox!.width / 2 - viewport.width / 2)).toBeLessThanOrEqual(1);
+  expect(Math.abs(buttonBox!.y + buttonBox!.height / 2 - viewport.height / 2)).toBeLessThanOrEqual(1);
+  expect(await button.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(await page.locator(".menu-cell").first().evaluate((element) => getComputedStyle(element).backgroundColor));
+  expect(await page.locator(".start-screen").evaluate((element) => getComputedStyle(element, "::after").backgroundImage)).toContain("radial-gradient");
+
+  const ordinary = page.locator('[data-menu-cell]:not([data-selected="true"])');
+  const selected = page.locator('[data-menu-cell][data-selected="true"]');
+  const ordinaryBefore = await ordinary.allTextContents();
+  const selectedBefore = await selected.allTextContents();
+  await page.waitForTimeout(1_100);
+  expect((await ordinary.allTextContents()).filter((letter, index) => letter !== ordinaryBefore[index]).length).toBeGreaterThanOrEqual(2);
+  expect(await selected.allTextContents()).toEqual(selectedBefore);
+});
+
 test("plays a complete puzzle and persists it to history", async ({ page }) => {
   await enterGame(page);
   const heading = page.getByRole("heading", { level: 1 });
