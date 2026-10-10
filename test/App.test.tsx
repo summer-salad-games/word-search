@@ -18,7 +18,7 @@ describe("App", () => {
     expect(screen.getAllByText(/^[a-z]+$/i).length).toBeGreaterThan(4);
     await user.click(screen.getByRole("button", { name: "Open menu" }));
     expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument();
-    expect(screen.getByText("Version 1.1.0")).toBeInTheDocument();
+    expect(screen.getByText("Version 1.2.0")).toBeInTheDocument();
     expect(screen.getByRole("slider", { name: "Volume" })).toHaveValue("75");
     fireEvent.change(screen.getByRole("slider", { name: "Volume" }), { target: { value: "37" } });
     expect(screen.getByText("37%")).toBeInTheDocument();
