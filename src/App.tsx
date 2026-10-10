@@ -451,7 +451,7 @@ function CollectionCompleteDialog({ session, records, puzzleCount, onReplay, onC
   return (
     <Modal labelledBy="collection-title" className="win-dialog" {...(onClose === undefined ? {} : { onClose })}>
         <div className="win-mark">★</div><p className="eyebrow">Every puzzle complete</p><h2 id="collection-title">You found them all!</h2>
-        <p className="dialog-copy">Congratulations — you completed all {THEMES.length} word-search grids.</p>
+        <p className="dialog-copy">Congratulations, you completed all {THEMES.length} word-search grids.</p>
         <section className="history-summary lifetime-summary" aria-label="Lifetime summary">
           <p className="eyebrow">Lifetime summary</p>
           <dl>
