@@ -11,6 +11,7 @@ function audioContextStub() {
     currentTime: 0,
     destination: {},
     resume: vi.fn(() => new Promise<void>((resolve) => { resolveResume = resolve; })),
+    close: vi.fn(() => Promise.resolve()),
     addEventListener: vi.fn((_type: string, listener: () => void) => { stateChange = listener; }),
     createOscillator: vi.fn(() => ({
       type: "sine",
@@ -62,10 +63,9 @@ describe("feedback audio lifecycle", () => {
 
     playFeedback("cell", settings);
     finishResume();
-    await Promise.resolve();
 
     expect(context.resume).toHaveBeenCalledOnce();
-    expect(start).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(start).toHaveBeenCalledTimes(2));
   });
 
   it("starts feedback without playing an audible confirmation", async () => {
@@ -89,5 +89,30 @@ describe("feedback audio lifecycle", () => {
 
     expect(context.resume).toHaveBeenCalledOnce();
     expect(start).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps only the newest sound while audio is resuming", async () => {
+    const { start, finishResume } = audioContextStub();
+    const { playFeedback } = await import("../src/feedback.js");
+
+    playFeedback("start", settings);
+    playFeedback("word", settings);
+    playFeedback("reject", settings);
+    finishResume();
+
+    await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
+  });
+
+  it("discards deferred sounds when the page audio lifecycle resets", async () => {
+    const { context, start, finishResume } = audioContextStub();
+    const { playFeedback, resetFeedbackAudio } = await import("../src/feedback.js");
+
+    playFeedback("complete", settings);
+    resetFeedbackAudio();
+    finishResume();
+    await Promise.resolve();
+
+    expect(context.close).toHaveBeenCalledOnce();
+    expect(start).not.toHaveBeenCalled();
   });
 });

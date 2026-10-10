@@ -39,6 +39,9 @@ const NOTES: Readonly<Record<FeedbackKind, readonly FeedbackNote[]>> = {
 };
 
 let audioContext: AudioContext | undefined;
+let resumePromise: Promise<boolean> | undefined;
+let audioGeneration = 0;
+let playbackRequest = 0;
 let hapticsUnlocked = false;
 let previousCellFrequency = 530;
 let lastCellFeedbackAt = 0;
@@ -72,17 +75,31 @@ function scheduleNotes(context: AudioContext, notes: readonly FeedbackNote[], vo
   }
 }
 
+function resumeContext(context: AudioContext): Promise<boolean> {
+  if (context.state === "running") return Promise.resolve(true);
+  if (context.state === "closed") return Promise.resolve(false);
+  if (resumePromise !== undefined) return resumePromise;
+  const generation = audioGeneration;
+  const pending = context.resume()
+    .then(() => audioContext === context && audioGeneration === generation && context.state === "running")
+    .catch(() => false)
+    .finally(() => { if (resumePromise === pending) resumePromise = undefined; });
+  resumePromise = pending;
+  return pending;
+}
+
 function playNotes(notes: readonly FeedbackNote[], volume: number): void {
   if (document.hidden) return;
+  const request = ++playbackRequest;
   const context = currentContext();
   if (context === undefined || context.state === "closed") return;
   if (context.state === "running") {
     scheduleNotes(context, notes, volume);
     return;
   }
-  void context.resume().then(() => {
-    if (context.state === "running") scheduleNotes(context, notes, volume);
-  }).catch(() => undefined);
+  void resumeContext(context).then((running) => {
+    if (running && request === playbackRequest && !document.hidden) scheduleNotes(context, notes, volume);
+  });
 }
 
 function vibrate(pattern: number | readonly number[]): void {
@@ -94,9 +111,16 @@ export async function startFeedback(settings: FeedbackSettings): Promise<void> {
   hapticsUnlocked = settings.vibrationEnabled;
   if (settings.volume <= 0 || document.hidden) return;
   const context = currentContext();
-  if (context?.state !== "suspended") return;
-  try { await context.resume(); }
-  catch { /* Sound remains unavailable; gameplay can still start. */ }
+  if (context !== undefined) await resumeContext(context);
+}
+
+export function resetFeedbackAudio(): void {
+  const context = audioContext;
+  audioContext = undefined;
+  resumePromise = undefined;
+  audioGeneration += 1;
+  playbackRequest += 1;
+  if (context !== undefined && context.state !== "closed") void context.close().catch(() => undefined);
 }
 
 export function playFeedback(kind: FeedbackKind, settings: FeedbackSettings): void {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import packageMetadata from "../package.json";
 import { calculatePuzzleProfile, createSession, extendSelection, formatCount, formatDuration, gameReducer, pathsMatch, positionKey, type GameSession } from "./app-model.js";
-import { DEFAULT_FEEDBACK_SETTINGS, playFeedback, startFeedback, type FeedbackSettings } from "./feedback.js";
+import { DEFAULT_FEEDBACK_SETTINGS, playFeedback, resetFeedbackAudio, startFeedback, type FeedbackSettings } from "./feedback.js";
 import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadFeedbackSettings, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, saveFeedbackSettings, type ColorMode, type HistoryRecord } from "./persistence.js";
 import { getTheme, SELECTION_COLORS, selectRandomTheme, THEMES } from "./themes.js";
 import { changeStartMenuLetters, createStartMenuGrid } from "./start-menu.js";
@@ -627,6 +627,16 @@ export default function App() {
   const [completedThemeIds, setCompletedThemeIds] = useState<readonly string[]>([]);
   const [lifetimeRecords, setLifetimeRecords] = useState<readonly HistoryRecord[]>([]);
   const [error, setError] = useState<string>();
+
+  useEffect(() => {
+    const resetWhenHidden = () => { if (document.hidden) resetFeedbackAudio(); };
+    document.addEventListener("visibilitychange", resetWhenHidden);
+    window.addEventListener("pagehide", resetFeedbackAudio);
+    return () => {
+      document.removeEventListener("visibilitychange", resetWhenHidden);
+      window.removeEventListener("pagehide", resetFeedbackAudio);
+    };
+  }, []);
 
   useEffect(() => {
     if (!orientation.supported || initialized.current) return;
