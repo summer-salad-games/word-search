@@ -19,7 +19,7 @@ export interface HistoryRecord {
 }
 
 interface WordSearchDatabase extends DBSchema {
-  state: { key: "active-game" | "color-mode" | "completed-themes" | "feedback-enabled" | "volume" | "vibration-enabled"; value: unknown };
+  state: { key: "active-game" | "color-mode" | "completed-themes" | "volume" | "vibration-enabled"; value: unknown };
   history: { key: string; value: HistoryRecord; indexes: { "by-completed": string } };
 }
 
@@ -93,15 +93,13 @@ export async function saveColorMode(mode: ColorMode): Promise<void> {
 
 export async function loadFeedbackSettings(): Promise<FeedbackSettings> {
   const db = await database;
-  const [volume, vibrationEnabled, legacyEnabled] = await Promise.all([
+  const [volume, vibrationEnabled] = await Promise.all([
     db.get("state", "volume"),
     db.get("state", "vibration-enabled"),
-    db.get("state", "feedback-enabled"),
   ]);
-  const legacy = typeof legacyEnabled === "boolean" ? legacyEnabled : true;
   return {
-    volume: typeof volume === "number" && Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : legacy ? DEFAULT_FEEDBACK_SETTINGS.volume : 0,
-    vibrationEnabled: typeof vibrationEnabled === "boolean" ? vibrationEnabled : legacy,
+    volume: typeof volume === "number" && Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : DEFAULT_FEEDBACK_SETTINGS.volume,
+    vibrationEnabled: typeof vibrationEnabled === "boolean" ? vibrationEnabled : DEFAULT_FEEDBACK_SETTINGS.vibrationEnabled,
   };
 }
 
