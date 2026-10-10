@@ -38,7 +38,11 @@ function StartScreen({ hasProgress, feedbackEnabled, onStart }: {
 }) {
   const [starting, setStarting] = useState(false);
   const grid = useMemo(() => createStartMenuGrid(window.innerWidth, window.innerHeight, SELECTION_COLORS), []);
-  const [changedLetters, setChangedLetters] = useState<ReadonlyMap<string, string>>(() => new Map());
+  const baseLetters = useMemo(() => new Map(grid.cells.map((cell) => [`${cell.x},${cell.y}`, cell.letter])), [grid.cells]);
+  const [letterState, setLetterState] = useState<{
+    readonly letters: ReadonlyMap<string, string>;
+    readonly transitions: ReadonlyMap<string, { readonly previous: string; readonly current: string; readonly revision: number }>;
+  }>(() => ({ letters: new Map(), transitions: new Map() }));
 
   useEffect(() => {
     const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -51,7 +55,16 @@ function StartScreen({ hasProgress, feedbackEnabled, onStart }: {
     const schedule = () => {
       if (reducedMotion.matches) return;
       timer = window.setTimeout(() => {
-        if (!document.hidden) setChangedLetters((current) => changeStartMenuLetters(grid.cells, current, 2 + randomValue() % 2));
+        if (!document.hidden) setLetterState((current) => {
+          const letters = changeStartMenuLetters(grid.cells, current.letters, 2 + randomValue() % 2);
+          const transitions = new Map(current.transitions);
+          for (const [key, letter] of letters) {
+            const previous = current.letters.get(key) ?? baseLetters.get(key)!;
+            if (previous === letter) continue;
+            transitions.set(key, { previous, current: letter, revision: (transitions.get(key)?.revision ?? 0) + 1 });
+          }
+          return { letters, transitions };
+        });
         schedule();
       }, 700 + randomValue() % 301);
     };
@@ -65,7 +78,7 @@ function StartScreen({ hasProgress, feedbackEnabled, onStart }: {
       reducedMotion.removeEventListener("change", update);
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [grid.cells]);
+  }, [baseLetters, grid.cells]);
 
   const start = async () => {
     if (starting) return;
@@ -78,10 +91,11 @@ function StartScreen({ hasProgress, feedbackEnabled, onStart }: {
   return <main className="start-screen" style={gridStyle}>
     {grid.cells.map((cell) => {
       const key = `${cell.x},${cell.y}`;
-      const letter = changedLetters.get(key) ?? cell.letter;
+      const transition = letterState.transitions.get(key);
+      const letter = letterState.letters.get(key) ?? cell.letter;
       return <span
       key={key}
-      className={`menu-cell${cell.color === undefined ? "" : " is-selected"}${changedLetters.has(key) ? " is-changing" : ""}`}
+      className={`menu-cell${cell.color === undefined ? "" : " is-selected"}${transition === undefined ? "" : " is-changing"}`}
       style={{
         gridColumn: cell.x + 1,
         gridRow: cell.y + 1,
@@ -90,7 +104,10 @@ function StartScreen({ hasProgress, feedbackEnabled, onStart }: {
       data-menu-cell="true"
       data-selected={cell.color === undefined ? undefined : "true"}
       aria-hidden="true"
-    ><span key={letter}>{letter}</span></span>;
+    >{transition === undefined
+      ? <span>{letter}</span>
+      : <><span key={`previous-${transition.revision}`} className="menu-letter-previous">{transition.previous}</span><span key={`current-${transition.revision}`} className="menu-letter-current">{transition.current}</span></>
+    }</span>;
     })}
     <button
       className="start-button"

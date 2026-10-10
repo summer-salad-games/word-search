@@ -41,9 +41,11 @@ button { font: inherit; }
 
 .start-screen { --menu-gap: clamp(2px, .45vmin, 5px); isolation: isolate; width: 100%; height: 100dvh; display: grid; grid-template-columns: repeat(var(--menu-columns), minmax(0, 1fr)); grid-template-rows: repeat(var(--menu-rows), minmax(0, 1fr)); gap: var(--menu-gap); overflow: hidden; padding: var(--menu-gap); user-select: none; -webkit-user-select: none; }
 .start-screen::after { content: ""; position: fixed; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(circle at center, transparent 18%, rgb(var(--menu-veil) / .08) 38%, rgb(var(--menu-veil) / .5) 100%); }
-.menu-cell { min-width: 0; min-height: 0; display: grid; place-items: center; border: 1px solid var(--cell-border); border-radius: clamp(4px, .8vmin, 8px); background: var(--cell); color: var(--text); font-size: clamp(.72rem, 2.6vmin, 1.12rem); font-weight: 760; line-height: 1; }
+.menu-cell { min-width: 0; min-height: 0; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--cell-border); border-radius: clamp(4px, .8vmin, 8px); background: var(--cell); color: var(--text); font-size: clamp(.72rem, 2.6vmin, 1.12rem); font-weight: 760; line-height: 1; }
 .menu-cell.is-selected { z-index: 2; border-color: var(--selection-color); background: var(--selection-color); color: #fff; }
-.menu-cell.is-changing span { animation: menu-letter-in 180ms ease-out; }
+.menu-cell.is-changing > span { grid-area: 1 / 1; backface-visibility: hidden; will-change: transform, opacity; }
+.menu-letter-previous { animation: menu-letter-out 240ms both cubic-bezier(.4, 0, .6, 1); }
+.menu-letter-current { animation: menu-letter-in 240ms both cubic-bezier(.2, .75, .25, 1); }
 .start-button { z-index: 3; min-width: 0; min-height: 0; padding: 0 8px; border: 1px solid var(--text); border-radius: clamp(4px, .8vmin, 8px); background: var(--text); color: var(--background); font-size: clamp(.76rem, 2.4vmin, 1rem); font-weight: 800; letter-spacing: .04em; text-transform: uppercase; cursor: pointer; animation: start-focus 2.8s ease-in-out infinite; transition: filter 130ms ease, transform 130ms ease, opacity 130ms ease; }
 .start-button:active { transform: scale(.96); }
 .start-button:disabled { cursor: wait; opacity: .68; }
@@ -155,7 +157,8 @@ dd { margin: 0; font-weight: 720; font-variant-numeric: tabular-nums; }
 @keyframes dialog-in { from { opacity: 0; transform: translateY(12px) scale(.97); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes band-enter { from { opacity: 0; transform: translateY(5px); } }
-@keyframes menu-letter-in { from { opacity: .2; transform: scale(.82); } }
+@keyframes menu-letter-out { to { opacity: 0; transform: translateY(-35%) scaleY(.9); } }
+@keyframes menu-letter-in { from { opacity: 0; transform: translateY(35%) scaleY(.9); } }
 @keyframes start-focus { 50% { box-shadow: 0 0 0 2px var(--line); } }
 
 .app-shell.mobile-layout { padding-inline: 12px; gap: 10px; }
