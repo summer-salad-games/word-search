@@ -27,6 +27,8 @@ const NOTES: Readonly<Record<FeedbackKind, readonly FeedbackNote[]>> = {
 };
 
 let audioContext: AudioContext | undefined;
+let resumePromise: Promise<void> | undefined;
+let pendingNotes: readonly FeedbackNote[] | undefined;
 let hapticsUnlocked = false;
 let previousCellFrequency = 530;
 let lastCellFeedbackAt = 0;
@@ -34,22 +36,31 @@ let lastCellFeedbackAt = 0;
 function currentContext(): AudioContext | undefined {
   const AudioContextConstructor = window.AudioContext;
   if (AudioContextConstructor === undefined) return undefined;
-  if (audioContext?.state === "closed") audioContext = undefined;
-  audioContext ??= new AudioContextConstructor();
+  if (audioContext?.state === "closed") {
+    audioContext = undefined;
+    resumePromise = undefined;
+    pendingNotes = undefined;
+  }
+  if (audioContext === undefined) {
+    const createdContext = new AudioContextConstructor();
+    createdContext.addEventListener("statechange", () => flushPendingNotes(createdContext));
+    audioContext = createdContext;
+  }
   return audioContext;
 }
 
 function resumeContext(context: AudioContext): void {
-  if (context.state === "suspended") void context.resume().catch(() => undefined);
+  if (context.state !== "suspended" || resumePromise !== undefined) return;
+  resumePromise = context.resume()
+    .catch(() => undefined)
+    .finally(() => {
+      resumePromise = undefined;
+      flushPendingNotes(context);
+    });
 }
 
-function playNotes(notes: readonly FeedbackNote[]): void {
-  if (document.hidden) return;
-  const context = currentContext();
-  if (context === undefined || context.state === "closed") return;
-  if (context.state === "suspended" && navigator.userActivation?.isActive === false) return;
-  resumeContext(context);
-  const startedAt = context.currentTime;
+function scheduleNotes(context: AudioContext, notes: readonly FeedbackNote[]): void {
+  const startedAt = context.currentTime + 0.015;
   for (const note of notes) {
     const oscillator = context.createOscillator();
     const gain = context.createGain();
@@ -65,6 +76,26 @@ function playNotes(notes: readonly FeedbackNote[]): void {
     oscillator.start(noteStart);
     oscillator.stop(noteEnd + 0.01);
   }
+}
+
+function flushPendingNotes(context: AudioContext): void {
+  if (context.state !== "running" || pendingNotes === undefined) return;
+  const notes = pendingNotes;
+  pendingNotes = undefined;
+  scheduleNotes(context, notes);
+}
+
+function playNotes(notes: readonly FeedbackNote[]): void {
+  if (document.hidden) return;
+  const context = currentContext();
+  if (context === undefined || context.state === "closed") return;
+  if (context.state === "running") {
+    scheduleNotes(context, notes);
+    return;
+  }
+  if (navigator.userActivation?.isActive === false) return;
+  pendingNotes ??= notes;
+  resumeContext(context);
 }
 
 function vibrate(pattern: number | readonly number[]): void {
