@@ -1,6 +1,6 @@
 import { openDB, type DBSchema } from "idb";
 import { z } from "zod";
-import { GENERATOR_VERSION, type GameSession, type PuzzleProfile } from "./app-model.js";
+import type { GameSession, PuzzleProfile } from "./app-model.js";
 import { DEFAULT_FEEDBACK_SETTINGS, type FeedbackSettings } from "./feedback.js";
 
 export type ColorMode = "light" | "dark" | "system";
@@ -15,7 +15,6 @@ export interface HistoryRecord {
   readonly lettersSelected: number;
   readonly completedAt: string;
   readonly profile: PuzzleProfile;
-  readonly generatorVersion: number;
 }
 
 interface WordSearchDatabase extends DBSchema {
@@ -44,12 +43,11 @@ const sessionSchema = z.object({
   elapsedMs: z.number().nonnegative(), status: z.enum(["playing", "completed"]), profile: profileSchema,
   completedAt: z.string().optional(),
 });
-const persistedSessionSchema = z.object({ generatorVersion: z.number().int(), session: sessionSchema });
 const completedThemesSchema = z.array(z.string()).transform((ids) => [...new Set(ids)]);
 const historySchema = z.object({
   id: z.string(), themeId: z.string(), themeTitle: z.string(), seed: z.string(), elapsedMs: z.number().nonnegative(),
   wordCount: z.number().int().nonnegative(), lettersSelected: z.number().int().nonnegative(), completedAt: z.string(),
-  profile: profileSchema, generatorVersion: z.number().int(),
+  profile: profileSchema,
 });
 
 const database = openDB<WordSearchDatabase>("word-search-game", 1, {
@@ -62,14 +60,12 @@ const database = openDB<WordSearchDatabase>("word-search-game", 1, {
 
 export async function loadActiveGame(): Promise<GameSession | undefined> {
   const value = await (await database).get("state", "active-game");
-  const parsed = persistedSessionSchema.safeParse(value);
-  return parsed.success && parsed.data.generatorVersion === GENERATOR_VERSION
-    ? parsed.data.session as GameSession
-    : undefined;
+  const parsed = sessionSchema.safeParse(value);
+  return parsed.success ? parsed.data as GameSession : undefined;
 }
 
 export async function saveActiveGame(session: GameSession): Promise<void> {
-  await (await database).put("state", structuredClone({ generatorVersion: GENERATOR_VERSION, session }), "active-game");
+  await (await database).put("state", structuredClone(session), "active-game");
 }
 
 export async function clearActiveGame(): Promise<void> {
@@ -138,6 +134,6 @@ export async function loadHistory(): Promise<HistoryRecord[]> {
   const values = await (await database).getAllFromIndex("history", "by-completed");
   return values.flatMap((value) => {
     const parsed = historySchema.safeParse(value);
-    return parsed.success && parsed.data.generatorVersion <= GENERATOR_VERSION ? [parsed.data] : [];
+    return parsed.success ? [parsed.data] : [];
   }).reverse();
 }

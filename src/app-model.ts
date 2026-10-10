@@ -1,7 +1,6 @@
 import { Direction, generatePuzzle, PuzzleGenerationError, type Position, type PuzzleResult } from "./index.js";
 import type { PuzzleTheme } from "./themes.js";
 
-export const GENERATOR_VERSION = 5;
 const ATTEMPTS_PER_WORD_COUNT = 4;
 const MAX_COMPLETE_PUZZLE_ATTEMPTS = 52;
 

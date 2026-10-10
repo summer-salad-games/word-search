@@ -94,11 +94,11 @@ test("congratulates the player after the final unique grid and resets the whole 
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
     });
-    const active = await new Promise<{ session: { themeId: string } }>((resolve, reject) => {
+    const active = await new Promise<{ themeId: string }>((resolve, reject) => {
       const request = db.transaction("state").objectStore("state").get("active-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
     });
     db.close();
-    return active.session.themeId;
+    return active.themeId;
   });
   await page.evaluate(async ({ currentThemeId }) => {
     const { THEMES } = await import("/src/themes.ts");

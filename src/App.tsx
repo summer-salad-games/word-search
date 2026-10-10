@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import packageMetadata from "../package.json";
-import { calculatePuzzleProfile, createSession, extendSelection, formatCount, formatDuration, gameReducer, pathsMatch, positionKey, GENERATOR_VERSION, type GameSession } from "./app-model.js";
+import { calculatePuzzleProfile, createSession, extendSelection, formatCount, formatDuration, gameReducer, pathsMatch, positionKey, type GameSession } from "./app-model.js";
 import { DEFAULT_FEEDBACK_SETTINGS, playFeedback, startFeedback, type FeedbackSettings } from "./feedback.js";
 import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadFeedbackSettings, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, saveFeedbackSettings, type ColorMode, type HistoryRecord } from "./persistence.js";
 import { getTheme, SELECTION_COLORS, selectRandomTheme, THEMES } from "./themes.js";
@@ -404,7 +404,7 @@ function summarizeHistory(records: readonly HistoryRecord[]) {
 
 function historyRecordFor(session: GameSession): HistoryRecord {
   if (session.completedAt === undefined) throw new Error("Cannot create history for an unfinished puzzle.");
-  return { id: session.id, themeId: session.themeId, themeTitle: getTheme(session.themeId).title, seed: session.seed, elapsedMs: session.elapsedMs, wordCount: session.targetWords.length, lettersSelected: session.lettersSelected, completedAt: session.completedAt, profile: session.profile, generatorVersion: GENERATOR_VERSION };
+  return { id: session.id, themeId: session.themeId, themeTitle: getTheme(session.themeId).title, seed: session.seed, elapsedMs: session.elapsedMs, wordCount: session.targetWords.length, lettersSelected: session.lettersSelected, completedAt: session.completedAt, profile: session.profile };
 }
 
 function HistoryDialog({ records, completedCount, onClose }: { readonly records: readonly HistoryRecord[]; readonly completedCount: number; readonly onClose: () => void }) {

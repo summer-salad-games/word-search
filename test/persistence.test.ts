@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { calculatePuzzleProfile, createSession, GENERATOR_VERSION } from "../src/app-model.js";
+import { calculatePuzzleProfile, createSession } from "../src/app-model.js";
 import { loadCompletedThemeIds, loadFeedbackSettings, loadHistory, resetApplicationState, saveCompletion, saveFeedbackSettings } from "../src/persistence.js";
 import { THEMES } from "../src/themes.js";
 
@@ -18,7 +18,6 @@ describe("playthrough persistence", () => {
       lettersSelected: 42,
       completedAt: new Date().toISOString(),
       profile: session.profile,
-      generatorVersion: GENERATOR_VERSION,
     };
 
     await saveCompletion(record);
@@ -40,7 +39,6 @@ describe("playthrough persistence", () => {
       lettersSelected: 6,
       completedAt: new Date().toISOString(),
       profile: session.profile,
-      generatorVersion: GENERATOR_VERSION,
     });
 
     await resetApplicationState();
