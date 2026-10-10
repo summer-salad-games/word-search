@@ -13,6 +13,7 @@ interface WordSearchDebugApi {
   hideWords(): void;
   toggleWords(): void;
   loadTheme(idOrTitle: string): string;
+  showJourneyComplete(): void;
 }
 
 declare global {
@@ -444,17 +445,17 @@ function WinDialog({ session, onNext }: { readonly session: GameSession; readonl
   );
 }
 
-function CollectionCompleteDialog({ session, records, onReset }: { readonly session: GameSession; readonly records: readonly HistoryRecord[]; readonly onReset: () => void }) {
-  const completeRecords = records.some(({ id }) => id === session.id) ? records : [historyRecordFor(session), ...records];
+function CollectionCompleteDialog({ session, records, puzzleCount, onReset, onClose }: { readonly session?: GameSession; readonly records: readonly HistoryRecord[]; readonly puzzleCount?: number; readonly onReset: () => void; readonly onClose?: () => void }) {
+  const completeRecords = session?.completedAt !== undefined && !records.some(({ id }) => id === session.id) ? [historyRecordFor(session), ...records] : records;
   const totals = summarizeHistory(completeRecords);
   return (
-    <Modal labelledBy="collection-title" className="win-dialog">
+    <Modal labelledBy="collection-title" className="win-dialog" {...(onClose === undefined ? {} : { onClose })}>
         <div className="win-mark">★</div><p className="eyebrow">Every puzzle complete</p><h2 id="collection-title">You found them all!</h2>
         <p className="dialog-copy">Congratulations — you completed all {THEMES.length} word-search grids.</p>
         <section className="history-summary lifetime-summary" aria-label="Lifetime summary">
           <p className="eyebrow">Lifetime summary</p>
           <dl>
-            <div><dt>Puzzles</dt><dd>{completeRecords.length}</dd></div>
+            <div><dt>Puzzles</dt><dd>{puzzleCount ?? completeRecords.length}</dd></div>
             <div><dt>Total time</dt><dd>{formatDuration(totals.elapsedMs)}</dd></div>
             <div><dt>Words found</dt><dd>{formatCount(totals.words)}</dd></div>
             <div><dt>Letters</dt><dd>{formatCount(totals.lettersSelected)}</dd></div>
@@ -516,13 +517,14 @@ function Game({ initialSession, colorMode, feedbackSettings, isFinalPuzzle, comp
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [hidden, setHidden] = useState(document.hidden);
   const [debugWords, setDebugWords] = useState(false);
+  const [debugJourneyOpen, setDebugJourneyOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [selectionIndex, setSelectionIndex] = useState(0);
   const theme = getTheme(session.themeId);
   const colors = useMemo(() => new Map(session.targetWords.map((word, index) => [word, theme.colors[index % theme.colors.length]!])), [session.targetWords, theme.colors]);
   const currentColor = theme.colors[selectionIndex % theme.colors.length]!;
-  const { elapsed, getElapsed, pause } = useGameTimer(session, historyOpen || menuOpen || resetOpen || hidden, (value) => dispatch({ type: "set-elapsed", elapsedMs: value }));
+  const { elapsed, getElapsed, pause } = useGameTimer(session, historyOpen || menuOpen || resetOpen || debugJourneyOpen || hidden, (value) => dispatch({ type: "set-elapsed", elapsedMs: value }));
   const cellFeedback = useCallback((kind: "cell" | "reject") => playFeedback(kind, feedbackSettings), [feedbackSettings]);
 
   useEffect(() => onSession(session), [onSession, session]);
@@ -546,6 +548,7 @@ function Game({ initialSession, colorMode, feedbackSettings, isFinalPuzzle, comp
       hideWords: () => setDebugWords(false),
       toggleWords: () => setDebugWords((current) => !current),
       loadTheme: onDebugLoadTheme,
+      showJourneyComplete: () => setDebugJourneyOpen(true),
     };
     window.wordSearchDebug = api;
     return () => { if (window.wordSearchDebug === api) delete window.wordSearchDebug; };
@@ -584,7 +587,8 @@ function Game({ initialSession, colorMode, feedbackSettings, isFinalPuzzle, comp
       {historyOpen && <HistoryDialog records={history} completedCount={completedCount} onClose={() => setHistoryOpen(false)} />}
       {menuOpen && <SettingsDialog settings={feedbackSettings} colorMode={colorMode} onSettings={onFeedbackSettings} onColorMode={onColorMode} onReset={() => { setMenuOpen(false); setResetOpen(true); }} onClose={() => setMenuOpen(false)} />}
       {resetOpen && <ResetEverythingDialog onConfirm={onResetEverything} onClose={() => setResetOpen(false)} />}
-      {session.status === "completed" && (isFinalPuzzle
+      {debugJourneyOpen && <CollectionCompleteDialog records={lifetimeRecords} puzzleCount={THEMES.length} onReset={onResetEverything} onClose={() => setDebugJourneyOpen(false)} />}
+      {!debugJourneyOpen && session.status === "completed" && (isFinalPuzzle
         ? <CollectionCompleteDialog session={session} records={lifetimeRecords} onReset={onResetEverything} />
         : <WinDialog session={session} onNext={() => onNext(session)} />)}
     </main>

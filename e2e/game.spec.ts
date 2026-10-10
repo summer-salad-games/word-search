@@ -390,6 +390,17 @@ test("loads a requested theme through the console debug API", async ({ page }) =
   await expect(page.locator(".word-chip")).toHaveCount(6);
 });
 
+test("opens the journey-complete popup through the console debug API without changing progress", async ({ page }) => {
+  await enterGame(page);
+  await page.evaluate(() => window.wordSearchDebug?.showJourneyComplete());
+  const dialog = page.getByRole("dialog", { name: "You found them all!" });
+  await expect(dialog).toContainText("all 500 word-search grids");
+  await expect(dialog.getByRole("region", { name: "Lifetime summary" })).toContainText("Puzzles500");
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(page.locator(".game-footer")).toContainText("0 /");
+});
+
 test("can cancel reset or erase all application state", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await enterGame(page);
