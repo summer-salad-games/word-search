@@ -18,6 +18,8 @@ const PALETTES: readonly (readonly string[])[] = Object.freeze([
   ["#277da1", "#577590", "#43aa8b", "#90be6d", "#f9c74f", "#f94144"],
 ]);
 
+export const SELECTION_COLORS: readonly string[] = Object.freeze([...new Set(PALETTES.flat())]);
+
 const singleWordTitle = (title: string): string => title.replace(/\s+/gu, "");
 
 function hash(value: string): number {

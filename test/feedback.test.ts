@@ -40,25 +40,25 @@ describe("feedback audio lifecycle", () => {
     vi.resetModules();
   });
 
-  it("plays the first-cell sound as soon as a new context is running", async () => {
+  it("starts audio before gameplay and then plays cell feedback immediately", async () => {
     const { context, start, finishResume } = audioContextStub();
-    const { playFeedback } = await import("../src/feedback.js");
+    const { playFeedback, startFeedback } = await import("../src/feedback.js");
 
-    playFeedback("cell", true);
-
+    const ready = startFeedback(true);
     expect(context.resume).toHaveBeenCalledOnce();
     expect(start).not.toHaveBeenCalled();
     finishResume();
-    await Promise.resolve();
+    await ready;
+    playFeedback("cell", true);
+
     expect(start).toHaveBeenCalled();
   });
 
-  it("queues only one sound while the context is starting", async () => {
+  it("resumes and plays one requested sound after returning from suspension", async () => {
     const { context, start, finishResume } = audioContextStub();
     const { playFeedback } = await import("../src/feedback.js");
 
     playFeedback("cell", true);
-    playFeedback("reject", true);
     finishResume();
     await Promise.resolve();
 
@@ -66,11 +66,11 @@ describe("feedback audio lifecycle", () => {
     expect(start).toHaveBeenCalledTimes(2);
   });
 
-  it("unlocks feedback without playing an audible confirmation", async () => {
+  it("starts feedback without playing an audible confirmation", async () => {
     const { context, start } = audioContextStub();
-    const { unlockFeedback } = await import("../src/feedback.js");
+    const { startFeedback } = await import("../src/feedback.js");
 
-    unlockFeedback(true);
+    void startFeedback(true);
 
     expect(context.resume).toHaveBeenCalledOnce();
     expect(start).not.toHaveBeenCalled();

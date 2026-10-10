@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { calculatePuzzleProfile, createSession, extendSelection, formatCount, formatDuration, gameReducer, pathsMatch, positionKey, resetSession, GENERATOR_VERSION, type GameSession } from "./app-model.js";
-import { markGestureCompleted, playFeedback, unlockFeedback } from "./feedback.js";
+import { playFeedback, startFeedback } from "./feedback.js";
 import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadFeedbackEnabled, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, saveFeedbackEnabled, type ColorMode, type HistoryRecord } from "./persistence.js";
-import { getTheme, selectRandomTheme, THEMES } from "./themes.js";
+import { getTheme, SELECTION_COLORS, selectRandomTheme, THEMES } from "./themes.js";
 import type { Position, PuzzleCell } from "./types.js";
 import "./styles.css";
 
@@ -28,6 +28,55 @@ function Icon({ name }: { readonly name: "history" | "reset" | "moon" | "sun" | 
     muted: <><path d="M11 5 6 9H2v6h4l5 4Z"/><path d="m16 9 5 5M21 9l-5 5"/></>,
   } as const;
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
+}
+
+const MENU_COLUMNS = 9;
+const MENU_ROWS = 11;
+const MENU_LETTERS = [..."PUZZLEGAMESFINDHIDDENLETTERSPLAYWORDSEARCHTOGETHERDISCOVERPATTERNS"];
+
+function StartScreen({ hasProgress, feedbackEnabled, onStart }: {
+  readonly hasProgress: boolean;
+  readonly feedbackEnabled: boolean;
+  readonly onStart: () => Promise<void>;
+}) {
+  const [starting, setStarting] = useState(false);
+  const colors = useMemo(() => {
+    const firstIndex = Math.floor(Math.random() * SELECTION_COLORS.length);
+    const secondOffset = 1 + Math.floor(Math.random() * (SELECTION_COLORS.length - 1));
+    return [SELECTION_COLORS[firstIndex]!, SELECTION_COLORS[(firstIndex + secondOffset) % SELECTION_COLORS.length]!] as const;
+  }, []);
+  const selected = useMemo(() => new Map<number, { readonly letter: string; readonly color: string }>([
+    ...[..."WORD"].map((letter, index) => [1 * MENU_COLUMNS + 2 + index, { letter, color: colors[0] }] as const),
+    ...[..."SEARCH"].map((letter, index) => [8 * MENU_COLUMNS + 1 + index, { letter, color: colors[1] }] as const),
+  ]), [colors]);
+
+  const start = async () => {
+    if (starting) return;
+    setStarting(true);
+    await startFeedback(feedbackEnabled);
+    await onStart();
+  };
+
+  return <main className="start-screen">
+    <header className="start-brand"><p className="eyebrow">Word search</p><h1>Find your flow.</h1></header>
+    <div className="menu-grid" aria-hidden="true">
+      {Array.from({ length: MENU_COLUMNS * MENU_ROWS }, (_, index) => {
+        const x = index % MENU_COLUMNS;
+        const y = Math.floor(index / MENU_COLUMNS);
+        const isClearance = y >= 4 && y <= 6 && x >= 2 && x <= 6;
+        const selection = selected.get(index);
+        return <span
+          key={index}
+          className={`menu-cell${isClearance ? " is-clearance" : ""}${selection === undefined ? "" : " is-selected"}`}
+          style={selection === undefined ? undefined : { "--selection-color": selection.color } as CSSProperties}
+        >{selection?.letter ?? MENU_LETTERS[index % MENU_LETTERS.length]}</span>;
+      })}
+    </div>
+    <div className="start-action">
+      <button className="start-button" onClick={() => void start()} disabled={starting}>{starting ? "Starting…" : hasProgress ? "Continue" : "New Game"}</button>
+    </div>
+    <p className="start-version">Version {__APP_VERSION__}</p>
+  </main>;
 }
 
 function Modal({ labelledBy, className, onClose, children }: {
@@ -153,10 +202,9 @@ interface GridProps {
   readonly currentColor: string;
   readonly debugWords: boolean;
   readonly onCellFeedback: (kind: "cell" | "reject") => void;
-  readonly onGestureCompleted: () => void;
 }
 
-function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords, onCellFeedback, onGestureCompleted }: GridProps) {
+function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords, onCellFeedback }: GridProps) {
   const gridRef = useRef<HTMLDivElement>(null);
   const pointerId = useRef<number | null>(null);
   const selectionRef = useRef<Position[]>([]);
@@ -269,7 +317,7 @@ function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords, on
         const position = positionFromPointer(event);
         if (position !== undefined) addCell(position);
       }}
-      onPointerUp={() => { onGestureCompleted(); finish(); }}
+      onPointerUp={finish}
       onPointerCancel={finish}
     >
       {rowBands.map((band, bandIndex) => (
@@ -419,7 +467,6 @@ function Game({ initialSession, colorMode, feedbackEnabled, isFinalPuzzle, compl
   const currentColor = theme.colors[selectionIndex % theme.colors.length]!;
   const { elapsed, getElapsed, pause } = useGameTimer(session, historyOpen || resetOpen || hidden, (value) => dispatch({ type: "set-elapsed", elapsedMs: value }));
   const cellFeedback = useCallback((kind: "cell" | "reject") => playFeedback(kind, feedbackEnabled), [feedbackEnabled]);
-  const completeGesture = useCallback(() => markGestureCompleted(feedbackEnabled), [feedbackEnabled]);
 
   useEffect(() => onSession(session), [onSession, session]);
   useEffect(() => {
@@ -467,14 +514,14 @@ function Game({ initialSession, colorMode, feedbackEnabled, isFinalPuzzle, compl
 
   return (
     <main className={`app-shell${session.profile.columns < 8 ? " mobile-layout" : ""}`}>
-      <header className="topbar"><div><p className="eyebrow game-label"><span>Word search</span><span className="version-tag">{__APP_VERSION__}</span></p><h1>{theme.title}</h1></div><div className="topbar-actions"><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => { const enabled = !feedbackEnabled; onFeedbackEnabled(enabled); unlockFeedback(enabled); }} aria-label={feedbackEnabled ? "Disable sound and haptics" : "Enable sound and haptics"} aria-pressed={feedbackEnabled}><Icon name={feedbackEnabled ? "feedback" : "muted"} /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
+      <header className="topbar"><div><p className="eyebrow game-label">Word search</p><h1>{theme.title}</h1></div><div className="topbar-actions"><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => { const enabled = !feedbackEnabled; onFeedbackEnabled(enabled); void startFeedback(enabled); }} aria-label={feedbackEnabled ? "Disable sound and haptics" : "Enable sound and haptics"} aria-pressed={feedbackEnabled}><Icon name={feedbackEnabled ? "feedback" : "muted"} /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
       <div className="puzzle-content">
         <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
           const solved = session.solvedWords.includes(word);
           const style = solved ? { "--selection-color": session.solvedColors[word] ?? colors.get(word) } as CSSProperties : undefined;
           return <span key={word} className={`word-chip${solved ? " is-solved" : ""}`} style={style}>{word}</span>;
         })}</section>
-        <section className="board-stage"><PuzzleGrid session={session} colors={colors} onSelection={onSelection} currentColor={currentColor} debugWords={debugWords} onCellFeedback={cellFeedback} onGestureCompleted={completeGesture} /></section>
+        <section className="board-stage"><PuzzleGrid session={session} colors={colors} onSelection={onSelection} currentColor={currentColor} debugWords={debugWords} onCellFeedback={cellFeedback} /></section>
       </div>
       <footer className="game-footer"><span>{session.solvedWords.length} / {session.targetWords.length} found</span><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span></footer>
       {historyOpen && <HistoryDialog records={history} completedCount={completedCount} onClose={() => setHistoryOpen(false)} />}
@@ -492,6 +539,8 @@ export default function App() {
   const [session, setSession] = useState<GameSession>();
   const [colorMode, setColorMode] = useState<ColorMode>("system");
   const [feedbackEnabled, setFeedbackEnabled] = useState(true);
+  const [started, setStarted] = useState(false);
+  const [hasProgress, setHasProgress] = useState(false);
   const [completedThemeIds, setCompletedThemeIds] = useState<readonly string[]>([]);
   const [lifetimeRecords, setLifetimeRecords] = useState<readonly HistoryRecord[]>([]);
   const [error, setError] = useState<string>();
@@ -506,6 +555,7 @@ export default function App() {
       const activeGame = active !== undefined && knownIds.has(active.themeId) ? active : undefined;
       setColorMode(resolvedMode);
       setFeedbackEnabled(persistedFeedbackEnabled);
+      setHasProgress(activeGame !== undefined || completed.length > 0 || persistedHistory.length > 0);
       setCompletedThemeIds(completed);
       setLifetimeRecords(persistedHistory);
       try {
@@ -514,6 +564,7 @@ export default function App() {
       }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     }).catch(() => {
+      setHasProgress(false);
       try { setSession(createSession(selectRandomTheme()!, profileForCurrentScreen())); }
       catch (reason) { setError(reason instanceof Error ? reason.message : "Could not create a puzzle."); }
     });
@@ -541,7 +592,8 @@ export default function App() {
       setCompletedThemeIds([]);
       setLifetimeRecords([]);
       setSession(fresh);
-      void saveActiveGame(fresh);
+      setHasProgress(false);
+      setStarted(false);
     }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Could not reset the application."));
   }, []);
   const completePuzzle = useCallback((completed: GameSession) => {
@@ -582,6 +634,7 @@ export default function App() {
   if (!orientation.supported) return <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for {orientation.requiredOrientation} play.</span></div>;
   if (error !== undefined) return <main className="loading-screen"><p className="eyebrow">Something went wrong</p><h1>{error}</h1><button className="primary-button" onClick={() => location.reload()}>Try again</button></main>;
   if (session === undefined) return <main className="loading-screen"><div className="loader"/><p>Preparing your puzzle…</p></main>;
+  if (!started) return <StartScreen hasProgress={hasProgress} feedbackEnabled={feedbackEnabled} onStart={async () => setStarted(true)} />;
   const completedBeforeCurrent = completedThemeIds.filter((id) => id !== session.themeId).length;
   return <Game key={session.id} initialSession={session} colorMode={colorMode} feedbackEnabled={feedbackEnabled} isFinalPuzzle={completedBeforeCurrent === THEMES.length - 1} completedCount={completedThemeIds.length} lifetimeRecords={lifetimeRecords} onColorMode={updateMode} onFeedbackEnabled={updateFeedbackEnabled} onSession={updateSession} onComplete={completePuzzle} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything} onDebugLoadTheme={loadDebugTheme}/>;
 }

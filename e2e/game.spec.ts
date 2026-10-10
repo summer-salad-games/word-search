@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
 
+async function enterGame(page: import("@playwright/test").Page, navigate = true) {
+  if (navigate) await page.goto("/");
+  const startButton = page.getByRole("button", { name: /^(New Game|Continue)$/ });
+  await expect(startButton).toBeVisible();
+  await startButton.click();
+  await page.locator(".puzzle-grid").waitFor();
+}
+
 async function solveCurrentPuzzle(page: import("@playwright/test").Page) {
   const chips = page.locator(".word-chip");
   const words = await chips.allTextContents();
@@ -41,7 +49,7 @@ async function solveCurrentPuzzle(page: import("@playwright/test").Page) {
 }
 
 test("plays a complete puzzle and persists it to history", async ({ page }) => {
-  await page.goto("/");
+  await enterGame(page);
   const heading = page.getByRole("heading", { level: 1 });
   await expect(heading).toBeVisible();
   const themeTitle = (await heading.textContent())!;
@@ -61,8 +69,7 @@ test("plays a complete puzzle and persists it to history", async ({ page }) => {
 });
 
 test("congratulates the player after the final unique grid and resets the whole playthrough", async ({ page }) => {
-  await page.goto("/");
-  await page.locator(".puzzle-grid").waitFor();
+  await enterGame(page);
   const currentThemeId = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
@@ -86,7 +93,7 @@ test("congratulates the player after the final unique grid and resets the whole 
     db.close();
   }, { currentThemeId });
   await page.reload();
-  await page.locator(".puzzle-grid").waitFor();
+  await enterGame(page, false);
   await solveCurrentPuzzle(page);
 
   await expect(page.getByRole("dialog", { name: "You found them all!" })).toContainText("all 500 word-search grids");
@@ -96,7 +103,7 @@ test("congratulates the player after the final unique grid and resets the whole 
   await expect(lifetime).toContainText(/Letters\d+/);
   await page.getByRole("button", { name: /Reset everything/ }).click();
   await expect(page.getByRole("dialog", { name: "You found them all!" })).not.toBeVisible();
-  await expect(page.locator(".game-footer")).toContainText("00:00");
+  await expect(page.getByRole("button", { name: "New Game" })).toBeVisible();
   expect(await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
@@ -114,8 +121,7 @@ test("congratulates the player after the final unique grid and resets the whole 
 });
 
 test("rolls an incorrect selection back cell by cell", async ({ page }) => {
-  await page.goto("/");
-  await page.locator(".puzzle-grid").waitFor();
+  await enterGame(page);
   const first = await page.locator('[data-x="1"][data-y="1"]').boundingBox();
   const second = await page.locator('[data-x="2"][data-y="1"]').boundingBox();
   await page.mouse.move(first!.x + first!.width / 2, first!.y + first!.height / 2);
@@ -140,8 +146,7 @@ test("rolls an incorrect selection back cell by cell", async ({ page }) => {
 
 test("fits the page and toggles from system dark mode on the first click", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
-  await page.goto("/");
-  await page.locator(".puzzle-grid").waitFor();
+  await enterGame(page);
   expect(await page.evaluate(() => ({ width: document.documentElement.scrollWidth - document.documentElement.clientWidth, height: document.documentElement.scrollHeight - document.documentElement.clientHeight }))).toEqual({ width: 0, height: 0 });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.getByRole("button", { name: "Toggle color mode" }).click();
@@ -168,11 +173,11 @@ test("fits the page and toggles from system dark mode on the first click", async
 });
 
 test("persists the sound and haptics preference", async ({ page }) => {
-  await page.goto("/");
-  await page.locator(".puzzle-grid").waitFor();
+  await enterGame(page);
   await page.getByRole("button", { name: "Disable sound and haptics" }).click();
   await expect(page.getByRole("button", { name: "Enable sound and haptics" })).toHaveAttribute("aria-pressed", "false");
   await page.reload();
+  await enterGame(page, false);
   await expect(page.getByRole("button", { name: "Enable sound and haptics" })).toBeVisible();
 });
 
@@ -184,7 +189,7 @@ test("fits a large iPhone when Safari exposes less height than the physical scre
     isMobile: true,
   });
   const page = await context.newPage();
-  await page.goto("/");
+  await enterGame(page);
   const grid = page.locator(".puzzle-grid");
   await expect(grid).toHaveAttribute("aria-label", /^7 by 10/);
   await expect(page.locator(".game-label")).toHaveCSS("white-space", "nowrap");
@@ -228,8 +233,7 @@ test("scrolls newly completed history entries into view on a short phone", async
     isMobile: true,
   });
   const page = await context.newPage();
-  await page.goto("/");
-  await page.locator(".puzzle-grid").waitFor();
+  await enterGame(page);
   for (let completed = 0; completed < 3; completed += 1) {
     await solveCurrentPuzzle(page);
     await page.getByRole("button", { name: /Next puzzle/ }).click();
@@ -254,13 +258,14 @@ test("scrolls newly completed history entries into view on a short phone", async
 test("uses the screen only at creation and keeps a resumed board unchanged", async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, screen: { width: 1440, height: 1000 } });
   const page = await context.newPage();
-  await page.goto("/");
+  await enterGame(page);
   await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^18 by 12/);
   const letters = await page.locator(".puzzle-cell").allTextContents();
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^18 by 12/);
   expect(await page.locator(".puzzle-cell").allTextContents()).toEqual(letters);
   await page.reload();
+  await enterGame(page, false);
   await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^18 by 12/);
   expect(await page.locator(".puzzle-cell").allTextContents()).toEqual(letters);
   await context.close();
@@ -313,6 +318,8 @@ test("waits for tablet landscape before generating its first puzzle", async ({ b
   })).toBeUndefined();
 
   await page.setViewportSize({ width: 1112, height: 834 });
+  await expect(page.getByRole("button", { name: "New Game" })).toBeVisible();
+  await page.getByRole("button", { name: "New Game" }).click();
   await expect(page.locator(".puzzle-grid")).toBeVisible();
   await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^16 by 11/);
   const letters = await page.locator(".puzzle-cell").allTextContents();
@@ -332,15 +339,14 @@ test("uses the desktop-style layout when a tablet starts in landscape", async ({
     isMobile: true,
   });
   const page = await context.newPage();
-  await page.goto("/");
+  await enterGame(page);
   await expect(page.locator(".puzzle-grid")).toHaveAttribute("aria-label", /^17 by 11/);
   await expect(page.getByText("Turn your device")).not.toBeVisible();
   await context.close();
 });
 
 test("exposes console-only word highlighting in both color modes", async ({ page }) => {
-  await page.goto("/");
-  await page.locator(".puzzle-grid").waitFor();
+  await enterGame(page);
   await page.evaluate(() => window.wordSearchDebug?.highlightWords());
   const highlighted = page.locator(".puzzle-cell.is-debug");
   await expect(highlighted.first()).toHaveCSS("background-color", "rgb(119, 122, 125)");
@@ -352,8 +358,7 @@ test("exposes console-only word highlighting in both color modes", async ({ page
 });
 
 test("loads a requested theme through the console debug API", async ({ page }) => {
-  await page.goto("/");
-  await page.locator(".puzzle-grid").waitFor();
+  await enterGame(page);
   expect(await page.evaluate(() => window.wordSearchDebug?.loadTheme("nature-essentials"))).toBe("nature-essentials");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Nature");
   await expect(page.locator(".word-chip")).toHaveCount(6);
@@ -361,8 +366,7 @@ test("loads a requested theme through the console debug API", async ({ page }) =
 
 test("can cancel reset or erase all application state", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
-  await page.goto("/");
-  await page.locator(".puzzle-grid").waitFor();
+  await enterGame(page);
   await page.getByRole("button", { name: "Toggle color mode" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.evaluate(async () => {
@@ -382,9 +386,8 @@ test("can cancel reset or erase all application state", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.getByRole("button", { name: "Reset progress" }).click();
   await page.getByRole("button", { name: "Reset everything" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("button", { name: "New Game" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect(page.locator(".game-footer")).toContainText("00:00");
   expect(await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("word-search-game"); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
@@ -398,5 +401,5 @@ test("can cancel reset or erase all application state", async ({ page }) => {
     });
     db.close();
     return { stateKeys, historyCount };
-  })).toEqual({ stateKeys: ["active-game"], historyCount: 0 });
+  })).toEqual({ stateKeys: [], historyCount: 0 });
 });

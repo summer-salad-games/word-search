@@ -27,8 +27,6 @@ const NOTES: Readonly<Record<FeedbackKind, readonly FeedbackNote[]>> = {
 };
 
 let audioContext: AudioContext | undefined;
-let resumePromise: Promise<void> | undefined;
-let pendingNotes: readonly FeedbackNote[] | undefined;
 let hapticsUnlocked = false;
 let previousCellFrequency = 530;
 let lastCellFeedbackAt = 0;
@@ -38,25 +36,9 @@ function currentContext(): AudioContext | undefined {
   if (AudioContextConstructor === undefined) return undefined;
   if (audioContext?.state === "closed") {
     audioContext = undefined;
-    resumePromise = undefined;
-    pendingNotes = undefined;
   }
-  if (audioContext === undefined) {
-    const createdContext = new AudioContextConstructor();
-    createdContext.addEventListener("statechange", () => flushPendingNotes(createdContext));
-    audioContext = createdContext;
-  }
+  audioContext ??= new AudioContextConstructor({ latencyHint: "interactive" });
   return audioContext;
-}
-
-function resumeContext(context: AudioContext): void {
-  if (context.state !== "suspended" || resumePromise !== undefined) return;
-  resumePromise = context.resume()
-    .catch(() => undefined)
-    .finally(() => {
-      resumePromise = undefined;
-      flushPendingNotes(context);
-    });
 }
 
 function scheduleNotes(context: AudioContext, notes: readonly FeedbackNote[]): void {
@@ -78,13 +60,6 @@ function scheduleNotes(context: AudioContext, notes: readonly FeedbackNote[]): v
   }
 }
 
-function flushPendingNotes(context: AudioContext): void {
-  if (context.state !== "running" || pendingNotes === undefined) return;
-  const notes = pendingNotes;
-  pendingNotes = undefined;
-  scheduleNotes(context, notes);
-}
-
 function playNotes(notes: readonly FeedbackNote[]): void {
   if (document.hidden) return;
   const context = currentContext();
@@ -93,9 +68,9 @@ function playNotes(notes: readonly FeedbackNote[]): void {
     scheduleNotes(context, notes);
     return;
   }
-  if (navigator.userActivation?.isActive === false) return;
-  pendingNotes ??= notes;
-  resumeContext(context);
+  void context.resume().then(() => {
+    if (context.state === "running") scheduleNotes(context, notes);
+  }).catch(() => undefined);
 }
 
 function vibrate(pattern: number | readonly number[]): void {
@@ -103,15 +78,13 @@ function vibrate(pattern: number | readonly number[]): void {
   navigator.vibrate(typeof pattern === "number" ? pattern : [...pattern]);
 }
 
-export function markGestureCompleted(enabled: boolean): void {
-  if (!enabled) return;
-  hapticsUnlocked = true;
-}
-
-export function unlockFeedback(enabled: boolean): void {
+export async function startFeedback(enabled: boolean): Promise<void> {
+  hapticsUnlocked = enabled;
   if (!enabled || document.hidden) return;
   const context = currentContext();
-  if (context !== undefined) resumeContext(context);
+  if (context?.state !== "suspended") return;
+  try { await context.resume(); }
+  catch { /* Sound remains unavailable; gameplay can still start. */ }
 }
 
 export function playFeedback(kind: FeedbackKind, enabled: boolean): void {
