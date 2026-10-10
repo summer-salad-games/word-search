@@ -445,7 +445,7 @@ function WinDialog({ session, onNext }: { readonly session: GameSession; readonl
   );
 }
 
-function CollectionCompleteDialog({ session, records, puzzleCount, onReset, onClose }: { readonly session?: GameSession; readonly records: readonly HistoryRecord[]; readonly puzzleCount?: number; readonly onReset: () => void; readonly onClose?: () => void }) {
+function CollectionCompleteDialog({ session, records, puzzleCount, onReplay, onClose }: { readonly session?: GameSession; readonly records: readonly HistoryRecord[]; readonly puzzleCount?: number; readonly onReplay: () => void; readonly onClose?: () => void }) {
   const completeRecords = session?.completedAt !== undefined && !records.some(({ id }) => id === session.id) ? [historyRecordFor(session), ...records] : records;
   const totals = summarizeHistory(completeRecords);
   return (
@@ -463,7 +463,7 @@ function CollectionCompleteDialog({ session, records, puzzleCount, onReset, onCl
         </section>
         <div className="collection-replay">
           <p>Ready for a fresh journey?</p>
-          <button className="primary-button" onClick={onReset}>Play again</button>
+          <button className="primary-button" onClick={onReplay}>Play again</button>
         </div>
     </Modal>
   );
@@ -573,6 +573,10 @@ function Game({ initialSession, colorMode, feedbackSettings, isFinalPuzzle, comp
     catch { setHistory([]); }
     setHistoryOpen(true);
   };
+  const replayJourney = () => {
+    playFeedback("start", feedbackSettings);
+    onResetEverything();
+  };
 
   return (
     <main className={`app-shell${session.profile.columns < 8 ? " mobile-layout" : ""}`}>
@@ -589,9 +593,9 @@ function Game({ initialSession, colorMode, feedbackSettings, isFinalPuzzle, comp
       {historyOpen && <HistoryDialog records={history} completedCount={completedCount} onClose={() => setHistoryOpen(false)} />}
       {menuOpen && <SettingsDialog settings={feedbackSettings} colorMode={colorMode} onSettings={onFeedbackSettings} onColorMode={onColorMode} onReset={() => { setMenuOpen(false); setResetOpen(true); }} onClose={() => setMenuOpen(false)} />}
       {resetOpen && <ResetEverythingDialog onConfirm={onResetEverything} onClose={() => setResetOpen(false)} />}
-      {debugJourneyOpen && <CollectionCompleteDialog records={lifetimeRecords} puzzleCount={THEMES.length} onReset={onResetEverything} onClose={() => setDebugJourneyOpen(false)} />}
+      {debugJourneyOpen && <CollectionCompleteDialog records={lifetimeRecords} puzzleCount={THEMES.length} onReplay={replayJourney} onClose={() => setDebugJourneyOpen(false)} />}
       {!debugJourneyOpen && session.status === "completed" && (isFinalPuzzle
-        ? <CollectionCompleteDialog session={session} records={lifetimeRecords} onReset={onResetEverything} />
+        ? <CollectionCompleteDialog session={session} records={lifetimeRecords} onReplay={replayJourney} />
         : <WinDialog session={session} onNext={() => onNext(session)} />)}
     </main>
   );
