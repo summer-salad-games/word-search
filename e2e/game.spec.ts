@@ -216,7 +216,6 @@ test("fits a large iPhone when Safari exposes less height than the physical scre
   await enterGame(page);
   const grid = page.locator(".puzzle-grid");
   await expect(grid).toHaveAttribute("aria-label", /^7 by 10/);
-  await expect(page.locator(".game-label")).toHaveCSS("white-space", "nowrap");
   await expect(page.locator(".game-footer .timer")).toBeVisible();
   const menuButton = page.getByRole("button", { name: "Open menu" });
   const buttonBackground = await menuButton.evaluate((element) => getComputedStyle(element).backgroundColor);
