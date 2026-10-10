@@ -239,6 +239,12 @@ function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords, on
     "--active-color": selectionColor ?? currentColor,
   } as CSSProperties;
 
+  const rowBandSize = Math.ceil(session.puzzle.size.height / 6);
+  const rowBands = Array.from(
+    { length: Math.ceil(session.puzzle.size.height / rowBandSize) },
+    (_, bandIndex) => session.puzzle.grid.slice(bandIndex * rowBandSize, (bandIndex + 1) * rowBandSize),
+  );
+
   return (
     <div
       ref={gridRef}
@@ -266,25 +272,37 @@ function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords, on
       onPointerUp={() => { onGestureCompleted(); finish(); }}
       onPointerCancel={finish}
     >
-      {session.puzzle.grid.flatMap((row) => row.map((cell: PuzzleCell) => {
-        const key = positionKey(cell.position);
-        const solvedColor = solvedCells.get(key);
-        const cellStyle = solvedColor === undefined ? undefined : { "--selection-color": solvedColor } as CSSProperties;
-        return (
-          <div
-            key={key}
-            role="gridcell"
-            data-cell="true"
-            data-x={cell.position.x}
-            data-y={cell.position.y}
-            aria-label={`Row ${cell.position.y + 1}, column ${cell.position.x + 1}, ${cell.letter || "empty"}`}
-            className={`puzzle-cell${cell.isBorder ? " is-border" : ""}${activeKeys.has(key) ? " is-active" : ""}${solvedColor !== undefined ? " is-solved" : ""}${rejectingCell === key ? " is-rejecting" : ""}${debugWords && debugKeys.has(key) ? " is-debug" : ""}`}
-            style={cellStyle}
-          >
-            <span>{cell.letter}</span>
-          </div>
-        );
-      }))}
+      {rowBands.map((band, bandIndex) => (
+        <div
+          key={bandIndex}
+          className="puzzle-band"
+          role="rowgroup"
+          style={{
+            "--band-delay": `${bandIndex * 70}ms`,
+            "--band-rows": band.length,
+          } as CSSProperties}
+        >
+          {band.flatMap((row) => row.map((cell: PuzzleCell) => {
+            const key = positionKey(cell.position);
+            const solvedColor = solvedCells.get(key);
+            const cellStyle = solvedColor === undefined ? undefined : { "--selection-color": solvedColor } as CSSProperties;
+            return (
+              <div
+                key={key}
+                role="gridcell"
+                data-cell="true"
+                data-x={cell.position.x}
+                data-y={cell.position.y}
+                aria-label={`Row ${cell.position.y + 1}, column ${cell.position.x + 1}, ${cell.letter || "empty"}`}
+                className={`puzzle-cell${cell.isBorder ? " is-border" : ""}${activeKeys.has(key) ? " is-active" : ""}${solvedColor !== undefined ? " is-solved" : ""}${rejectingCell === key ? " is-rejecting" : ""}${debugWords && debugKeys.has(key) ? " is-debug" : ""}`}
+                style={cellStyle}
+              >
+                <span>{cell.letter}</span>
+              </div>
+            );
+          }))}
+        </div>
+      ))}
     </div>
   );
 }
