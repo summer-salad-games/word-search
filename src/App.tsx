@@ -461,8 +461,10 @@ function CollectionCompleteDialog({ session, records, puzzleCount, onReset, onCl
             <div><dt>Letters</dt><dd>{formatCount(totals.lettersSelected)}</dd></div>
           </dl>
         </section>
-        <p className="dialog-copy">Reset everything to clear this summary, your history, preferences, and all progress before starting over.</p>
-        <button className="primary-button" onClick={onReset}>Reset everything <span aria-hidden="true">↻</span></button>
+        <div className="collection-replay">
+          <p>Ready for a fresh journey?</p>
+          <button className="primary-button" onClick={onReset}>Play again <span aria-hidden="true">→</span></button>
+        </div>
     </Modal>
   );
 }

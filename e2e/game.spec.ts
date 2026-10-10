@@ -121,7 +121,7 @@ test("congratulates the player after the final unique grid and resets the whole 
   await expect(lifetime).toContainText("Puzzles1");
   await expect(lifetime).toContainText(/Words found\d+/);
   await expect(lifetime).toContainText(/Letters\d+/);
-  await page.getByRole("button", { name: /Reset everything/ }).click();
+  await page.getByRole("button", { name: /Play again/ }).click();
   await expect(page.getByRole("dialog", { name: "You found them all!" })).not.toBeVisible();
   await expect(page.getByRole("button", { name: "New Game" })).toBeVisible();
   expect(await page.evaluate(async () => {
