@@ -55,7 +55,6 @@ button { font: inherit; }
 .topbar-actions { display: flex; align-items: center; gap: 8px; }
 .timer { min-width: 4.5rem; font-variant-numeric: tabular-nums; font-weight: 720; text-align: center; }
 .icon-button { width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 50%; display: grid; place-items: center; background: var(--surface); color: var(--text); cursor: pointer; transition: transform 130ms ease, background 130ms ease; }
-.icon-button:hover { background: var(--surface-soft); transform: translateY(-1px); }
 .icon-button:active { transform: scale(.95); }
 .icon-button svg { width: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
@@ -123,10 +122,13 @@ dd { margin: 0; font-weight: 720; font-variant-numeric: tabular-nums; }
 .stats { margin: 28px 0 !important; padding: 18px 0; border-block: 1px solid var(--line); }
 .stats dd { font-size: 1.2rem; }
 .primary-button { min-height: 48px; padding: 0 22px; border: 0; border-radius: 999px; background: var(--text); color: var(--background); font-weight: 750; cursor: pointer; transition: transform 130ms ease, opacity 130ms ease; }
-.primary-button:hover { transform: translateY(-1px); }
 .primary-button:active { transform: scale(.97); }
 .secondary-button { min-height: 48px; padding: 0 22px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--text); font-weight: 720; cursor: pointer; }
-.secondary-button:hover { background: var(--surface-soft); }
+@media (hover: hover) and (pointer: fine) {
+  .icon-button:hover { background: var(--surface-soft); transform: translateY(-1px); }
+  .primary-button:hover { transform: translateY(-1px); }
+  .secondary-button:hover { background: var(--surface-soft); }
+}
 .danger-button { border-color: #c94b4b; color: #b63838; }
 :root[data-theme="dark"] .danger-button { color: #ff8b8b; border-color: #a84949; }
 .loading-screen, .orientation-guard { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 14px; padding: 24px; text-align: center; }

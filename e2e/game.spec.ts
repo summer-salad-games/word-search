@@ -189,6 +189,10 @@ test("fits a large iPhone when Safari exposes less height than the physical scre
   await expect(grid).toHaveAttribute("aria-label", /^7 by 10/);
   await expect(page.locator(".game-label")).toHaveCSS("white-space", "nowrap");
   await expect(page.locator(".game-footer .timer")).toBeVisible();
+  const feedbackButton = page.locator(".topbar-actions button[aria-pressed]");
+  const buttonBackground = await feedbackButton.evaluate((element) => getComputedStyle(element).backgroundColor);
+  await feedbackButton.click();
+  await expect(feedbackButton).toHaveCSS("background-color", buttonBackground);
   const bounds = await page.evaluate(() => {
     const header = document.querySelector(".topbar")!.getBoundingClientRect();
     const words = document.querySelector(".word-list")!.getBoundingClientRect();
