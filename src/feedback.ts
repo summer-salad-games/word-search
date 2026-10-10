@@ -31,27 +31,28 @@ let hapticsUnlocked = false;
 let previousCellFrequency = 530;
 let lastCellFeedbackAt = 0;
 
-async function readyContext(): Promise<AudioContext | undefined> {
+function currentContext(): AudioContext | undefined {
   const AudioContextConstructor = window.AudioContext;
   if (AudioContextConstructor === undefined) return undefined;
   if (audioContext?.state === "closed") audioContext = undefined;
   audioContext ??= new AudioContextConstructor();
-  if (audioContext.state === "suspended") {
-    try { await audioContext.resume(); }
-    catch { return undefined; }
-  }
-  if (audioContext.state !== "running") return undefined;
   return audioContext;
 }
 
-async function playNotes(notes: readonly FeedbackNote[]): Promise<void> {
+function resumeContext(context: AudioContext): void {
+  if (context.state === "suspended") void context.resume().catch(() => undefined);
+}
+
+function playNotes(notes: readonly FeedbackNote[]): void {
   if (document.hidden) return;
-  const currentContext = await readyContext();
-  if (currentContext === undefined) return;
-  const startedAt = currentContext.currentTime;
+  const context = currentContext();
+  if (context === undefined || context.state === "closed") return;
+  if (context.state === "suspended" && navigator.userActivation?.isActive === false) return;
+  resumeContext(context);
+  const startedAt = context.currentTime;
   for (const note of notes) {
-    const oscillator = currentContext.createOscillator();
-    const gain = currentContext.createGain();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
     const noteStart = startedAt + note.delay;
     const noteEnd = noteStart + note.duration;
     oscillator.type = note.type;
@@ -60,7 +61,7 @@ async function playNotes(notes: readonly FeedbackNote[]): Promise<void> {
     gain.gain.setValueAtTime(0.0001, noteStart);
     gain.gain.exponentialRampToValueAtTime(note.volume, noteStart + 0.004);
     gain.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
-    oscillator.connect(gain).connect(currentContext.destination);
+    oscillator.connect(gain).connect(context.destination);
     oscillator.start(noteStart);
     oscillator.stop(noteEnd + 0.01);
   }
@@ -76,6 +77,12 @@ export function markGestureCompleted(enabled: boolean): void {
   hapticsUnlocked = true;
 }
 
+export function unlockFeedback(enabled: boolean): void {
+  if (!enabled || document.hidden) return;
+  const context = currentContext();
+  if (context !== undefined) resumeContext(context);
+}
+
 export function playFeedback(kind: FeedbackKind, enabled: boolean): void {
   if (!enabled) return;
   if (kind === "cell") {
@@ -83,13 +90,13 @@ export function playFeedback(kind: FeedbackKind, enabled: boolean): void {
     if (now - lastCellFeedbackAt < 28) return;
     lastCellFeedbackAt = now;
     previousCellFrequency = previousCellFrequency === 530 ? 580 : 530;
-    void playNotes(NOTES.cell.map((note, index) => index === 0
+    playNotes(NOTES.cell.map((note, index) => index === 0
       ? { ...note, frequency: previousCellFrequency, endFrequency: previousCellFrequency - 140 }
       : note));
     vibrate(6);
     return;
   }
-  void playNotes(NOTES[kind]);
+  playNotes(NOTES[kind]);
   if (kind === "word") vibrate(12);
   if (kind === "complete") vibrate([12, 38, 16]);
 }

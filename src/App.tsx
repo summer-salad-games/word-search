@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { calculatePuzzleProfile, createSession, extendSelection, formatCount, formatDuration, gameReducer, pathsMatch, positionKey, resetSession, GENERATOR_VERSION, type GameSession } from "./app-model.js";
-import { markGestureCompleted, playFeedback } from "./feedback.js";
+import { markGestureCompleted, playFeedback, unlockFeedback } from "./feedback.js";
 import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadFeedbackEnabled, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, saveFeedbackEnabled, type ColorMode, type HistoryRecord } from "./persistence.js";
 import { getTheme, selectRandomTheme, THEMES } from "./themes.js";
 import type { Position, PuzzleCell } from "./types.js";
@@ -467,7 +467,7 @@ function Game({ initialSession, colorMode, feedbackEnabled, isFinalPuzzle, compl
 
   return (
     <main className={`app-shell${session.profile.columns < 8 ? " mobile-layout" : ""}`}>
-      <header className="topbar"><div><p className="eyebrow game-label"><span>Word search</span><span className="version-tag">{__APP_VERSION__}</span></p><h1>{theme.title}</h1></div><div className="topbar-actions"><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => { const enabled = !feedbackEnabled; onFeedbackEnabled(enabled); if (enabled) playFeedback("word", true); }} aria-label={feedbackEnabled ? "Disable sound and haptics" : "Enable sound and haptics"} aria-pressed={feedbackEnabled}><Icon name={feedbackEnabled ? "feedback" : "muted"} /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
+      <header className="topbar"><div><p className="eyebrow game-label"><span>Word search</span><span className="version-tag">{__APP_VERSION__}</span></p><h1>{theme.title}</h1></div><div className="topbar-actions"><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => { const enabled = !feedbackEnabled; onFeedbackEnabled(enabled); unlockFeedback(enabled); }} aria-label={feedbackEnabled ? "Disable sound and haptics" : "Enable sound and haptics"} aria-pressed={feedbackEnabled}><Icon name={feedbackEnabled ? "feedback" : "muted"} /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
       <div className="puzzle-content">
         <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
           const solved = session.solvedWords.includes(word);
