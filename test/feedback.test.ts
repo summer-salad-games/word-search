@@ -75,4 +75,17 @@ describe("feedback audio lifecycle", () => {
     expect(context.resume).toHaveBeenCalledOnce();
     expect(start).not.toHaveBeenCalled();
   });
+
+  it("plays a dedicated two-note start cue after audio is ready", async () => {
+    const { context, start, finishResume } = audioContextStub();
+    const { playFeedback, startFeedback } = await import("../src/feedback.js");
+
+    const ready = startFeedback(true);
+    finishResume();
+    await ready;
+    playFeedback("start", true);
+
+    expect(context.resume).toHaveBeenCalledOnce();
+    expect(start).toHaveBeenCalledTimes(2);
+  });
 });

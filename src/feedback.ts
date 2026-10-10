@@ -1,4 +1,4 @@
-type FeedbackKind = "cell" | "reject" | "word" | "complete";
+type FeedbackKind = "start" | "cell" | "reject" | "word" | "complete";
 
 interface FeedbackNote {
   readonly frequency: number;
@@ -10,6 +10,10 @@ interface FeedbackNote {
 }
 
 const NOTES: Readonly<Record<FeedbackKind, readonly FeedbackNote[]>> = {
+  start: [
+    { frequency: 720, endFrequency: 860, delay: 0, duration: 0.065, volume: 0.027, type: "sine" },
+    { frequency: 1_080, endFrequency: 1_180, delay: 0.045, duration: 0.055, volume: 0.018, type: "sine" },
+  ],
   cell: [
     { frequency: 550, endFrequency: 410, delay: 0, duration: 0.042, volume: 0.03, type: "sine" },
     { frequency: 1_400, endFrequency: 900, delay: 0, duration: 0.016, volume: 0.011, type: "sine" },

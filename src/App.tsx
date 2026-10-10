@@ -84,6 +84,7 @@ function StartScreen({ hasProgress, feedbackEnabled, onStart }: {
     if (starting) return;
     setStarting(true);
     await startFeedback(feedbackEnabled);
+    playFeedback("start", feedbackEnabled);
     await onStart();
   };
 
