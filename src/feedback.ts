@@ -5,6 +5,9 @@ export interface FeedbackSettings {
   readonly vibrationEnabled: boolean;
 }
 
+export const DEFAULT_FEEDBACK_SETTINGS: FeedbackSettings = { volume: 0.75, vibrationEnabled: true };
+const MAX_VOLUME_MULTIPLIER = 3;
+
 interface FeedbackNote {
   readonly frequency: number;
   readonly endFrequency?: number;
@@ -61,7 +64,7 @@ function scheduleNotes(context: AudioContext, notes: readonly FeedbackNote[], vo
     oscillator.frequency.setValueAtTime(note.frequency, noteStart);
     if (note.endFrequency !== undefined) oscillator.frequency.exponentialRampToValueAtTime(note.endFrequency, noteEnd);
     gain.gain.setValueAtTime(0.0001, noteStart);
-    gain.gain.exponentialRampToValueAtTime(note.volume * Math.min(1, Math.max(0, volume)) * 2, noteStart + 0.004);
+    gain.gain.exponentialRampToValueAtTime(note.volume * Math.min(1, Math.max(0, volume)) * MAX_VOLUME_MULTIPLIER, noteStart + 0.004);
     gain.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
     oscillator.connect(gain).connect(context.destination);
     oscillator.start(noteStart);

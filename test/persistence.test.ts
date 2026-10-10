@@ -49,8 +49,8 @@ describe("playthrough persistence", () => {
     expect(await loadHistory()).toEqual([]);
   });
 
-  it("defaults feedback to maximum volume and persists independent preferences", async () => {
-    expect(await loadFeedbackSettings()).toEqual({ volume: 1, vibrationEnabled: true });
+  it("defaults feedback to 75% volume and persists independent preferences", async () => {
+    expect(await loadFeedbackSettings()).toEqual({ volume: 0.75, vibrationEnabled: true });
     await saveFeedbackSettings({ volume: 0.37, vibrationEnabled: false });
     expect(await loadFeedbackSettings()).toEqual({ volume: 0.37, vibrationEnabled: false });
   });

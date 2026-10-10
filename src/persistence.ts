@@ -1,7 +1,7 @@
 import { openDB, type DBSchema } from "idb";
 import { z } from "zod";
 import { GENERATOR_VERSION, type GameSession, type PuzzleProfile } from "./app-model.js";
-import type { FeedbackSettings } from "./feedback.js";
+import { DEFAULT_FEEDBACK_SETTINGS, type FeedbackSettings } from "./feedback.js";
 
 export type ColorMode = "light" | "dark" | "system";
 
@@ -100,7 +100,7 @@ export async function loadFeedbackSettings(): Promise<FeedbackSettings> {
   ]);
   const legacy = typeof legacyEnabled === "boolean" ? legacyEnabled : true;
   return {
-    volume: typeof volume === "number" && Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : legacy ? 1 : 0,
+    volume: typeof volume === "number" && Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : legacy ? DEFAULT_FEEDBACK_SETTINGS.volume : 0,
     vibrationEnabled: typeof vibrationEnabled === "boolean" ? vibrationEnabled : legacy,
   };
 }

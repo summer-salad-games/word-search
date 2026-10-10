@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import packageMetadata from "../package.json";
 import { calculatePuzzleProfile, createSession, extendSelection, formatCount, formatDuration, gameReducer, pathsMatch, positionKey, GENERATOR_VERSION, type GameSession } from "./app-model.js";
-import { playFeedback, startFeedback, type FeedbackSettings } from "./feedback.js";
+import { DEFAULT_FEEDBACK_SETTINGS, playFeedback, startFeedback, type FeedbackSettings } from "./feedback.js";
 import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadFeedbackSettings, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, saveFeedbackSettings, type ColorMode, type HistoryRecord } from "./persistence.js";
 import { getTheme, SELECTION_COLORS, selectRandomTheme, THEMES } from "./themes.js";
 import { changeStartMenuLetters, createStartMenuGrid } from "./start-menu.js";
@@ -596,7 +596,7 @@ export default function App() {
   const initialized = useRef(false);
   const [session, setSession] = useState<GameSession>();
   const [colorMode, setColorMode] = useState<ColorMode>("system");
-  const [feedbackSettings, setFeedbackSettings] = useState<FeedbackSettings>({ volume: 1, vibrationEnabled: true });
+  const [feedbackSettings, setFeedbackSettings] = useState<FeedbackSettings>(DEFAULT_FEEDBACK_SETTINGS);
   const [started, setStarted] = useState(false);
   const [hasProgress, setHasProgress] = useState(false);
   const [completedThemeIds, setCompletedThemeIds] = useState<readonly string[]>([]);
@@ -641,7 +641,7 @@ export default function App() {
       const mode: ColorMode = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
       const fresh = createSession(selectRandomTheme()!, profileForCurrentScreen());
       setColorMode(mode);
-      setFeedbackSettings({ volume: 1, vibrationEnabled: true });
+      setFeedbackSettings(DEFAULT_FEEDBACK_SETTINGS);
       setCompletedThemeIds([]);
       setLifetimeRecords([]);
       setSession(fresh);
