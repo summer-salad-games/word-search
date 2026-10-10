@@ -3,6 +3,7 @@ import { calculatePuzzleProfile, createSession, extendSelection, formatCount, fo
 import { playFeedback, startFeedback } from "./feedback.js";
 import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadFeedbackEnabled, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, saveFeedbackEnabled, type ColorMode, type HistoryRecord } from "./persistence.js";
 import { getTheme, SELECTION_COLORS, selectRandomTheme, THEMES } from "./themes.js";
+import { createStartMenuGrid } from "./start-menu.js";
 import type { Position, PuzzleCell } from "./types.js";
 import "./styles.css";
 
@@ -30,25 +31,13 @@ function Icon({ name }: { readonly name: "history" | "reset" | "moon" | "sun" | 
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
 
-const MENU_COLUMNS = 9;
-const MENU_ROWS = 11;
-const MENU_LETTERS = [..."PUZZLEGAMESFINDHIDDENLETTERSPLAYWORDSEARCHTOGETHERDISCOVERPATTERNS"];
-
 function StartScreen({ hasProgress, feedbackEnabled, onStart }: {
   readonly hasProgress: boolean;
   readonly feedbackEnabled: boolean;
   readonly onStart: () => Promise<void>;
 }) {
   const [starting, setStarting] = useState(false);
-  const colors = useMemo(() => {
-    const firstIndex = Math.floor(Math.random() * SELECTION_COLORS.length);
-    const secondOffset = 1 + Math.floor(Math.random() * (SELECTION_COLORS.length - 1));
-    return [SELECTION_COLORS[firstIndex]!, SELECTION_COLORS[(firstIndex + secondOffset) % SELECTION_COLORS.length]!] as const;
-  }, []);
-  const selected = useMemo(() => new Map<number, { readonly letter: string; readonly color: string }>([
-    ...[..."WORD"].map((letter, index) => [1 * MENU_COLUMNS + 2 + index, { letter, color: colors[0] }] as const),
-    ...[..."SEARCH"].map((letter, index) => [8 * MENU_COLUMNS + 1 + index, { letter, color: colors[1] }] as const),
-  ]), [colors]);
+  const grid = useMemo(() => createStartMenuGrid(window.innerWidth, window.innerHeight, SELECTION_COLORS), []);
 
   const start = async () => {
     if (starting) return;
@@ -57,25 +46,24 @@ function StartScreen({ hasProgress, feedbackEnabled, onStart }: {
     await onStart();
   };
 
-  return <main className="start-screen">
-    <header className="start-brand"><p className="eyebrow">Word search</p><h1>Find your flow.</h1></header>
-    <div className="menu-grid" aria-hidden="true">
-      {Array.from({ length: MENU_COLUMNS * MENU_ROWS }, (_, index) => {
-        const x = index % MENU_COLUMNS;
-        const y = Math.floor(index / MENU_COLUMNS);
-        const isClearance = y >= 4 && y <= 6 && x >= 2 && x <= 6;
-        const selection = selected.get(index);
-        return <span
-          key={index}
-          className={`menu-cell${isClearance ? " is-clearance" : ""}${selection === undefined ? "" : " is-selected"}`}
-          style={selection === undefined ? undefined : { "--selection-color": selection.color } as CSSProperties}
-        >{selection?.letter ?? MENU_LETTERS[index % MENU_LETTERS.length]}</span>;
-      })}
-    </div>
-    <div className="start-action">
-      <button className="start-button" onClick={() => void start()} disabled={starting}>{starting ? "Starting…" : hasProgress ? "Continue" : "New Game"}</button>
-    </div>
-    <p className="start-version">Version {__APP_VERSION__}</p>
+  const gridStyle = { "--menu-columns": grid.columns, "--menu-rows": grid.rows } as CSSProperties;
+  return <main className="start-screen" style={gridStyle}>
+    {grid.cells.map((cell) => <span
+      key={`${cell.x},${cell.y}`}
+      className={`menu-cell${cell.color === undefined ? "" : " is-selected"}`}
+      style={{
+        gridColumn: cell.x + 1,
+        gridRow: cell.y + 1,
+        ...(cell.color === undefined ? {} : { "--selection-color": cell.color }),
+      } as CSSProperties}
+      aria-hidden="true"
+    >{cell.letter}</span>)}
+    <button
+      className="start-button"
+      style={{ gridColumn: `${grid.actionColumn + 1} / span ${grid.actionSpan}`, gridRow: grid.actionRow + 1 }}
+      onClick={() => void start()}
+      disabled={starting}
+    >{starting ? "Starting…" : hasProgress ? "Continue" : "New Game"}</button>
   </main>;
 }
 

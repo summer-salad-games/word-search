@@ -8,10 +8,11 @@ describe("App", () => {
     const user = userEvent.setup();
     render(<App />);
     expect(await screen.findByRole("button", { name: "New Game" })).toBeInTheDocument();
-    expect(screen.getByText("Version 1.1.0")).toBeInTheDocument();
+    expect(document.querySelectorAll(".menu-cell").length).toBeGreaterThan(80);
+    expect(screen.queryByText(/Version 1\.1\.0/i)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "New Game" }));
     expect(await screen.findByRole("heading", { level: 1 })).toBeInTheDocument();
-    expect(screen.queryByText("Version 1.1.0")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Version 1\.1\.0/i)).not.toBeInTheDocument();
     const grid = await screen.findByRole("grid");
     expect(grid.querySelectorAll("[role=gridcell]").length).toBeGreaterThanOrEqual(70);
     expect(screen.getAllByText(/^[a-z]+$/i).length).toBeGreaterThan(4);
