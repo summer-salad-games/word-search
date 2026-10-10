@@ -463,7 +463,7 @@ function CollectionCompleteDialog({ session, records, puzzleCount, onReset, onCl
         </section>
         <div className="collection-replay">
           <p>Ready for a fresh journey?</p>
-          <button className="primary-button" onClick={onReset}>Play again <span aria-hidden="true">→</span></button>
+          <button className="primary-button" onClick={onReset}>Play again</button>
         </div>
     </Modal>
   );
