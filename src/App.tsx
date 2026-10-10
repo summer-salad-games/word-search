@@ -594,7 +594,7 @@ function Game({ initialSession, colorMode, feedbackSettings, isFinalPuzzle, comp
 
   return (
     <main className={`app-shell${session.profile.columns < 8 ? " mobile-layout" : ""}`}>
-      <header className="topbar"><h1>{theme.title}</h1><div className="topbar-actions"><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button><button className="icon-button" onClick={() => { pause(); setSupportOpen(true); }} aria-label="Support the game"><Icon name="support" /></button><button className="icon-button" onClick={() => { pause(); setMenuOpen(true); }} aria-label="Open menu"><Icon name="menu" /></button></div></header>
+      <header className="topbar"><h1>{theme.title}</h1><div className="topbar-actions"><button className="icon-button" onClick={() => { pause(); setSupportOpen(true); }} aria-label="Support the game"><Icon name="support" /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button><button className="icon-button" onClick={() => { pause(); setMenuOpen(true); }} aria-label="Open menu"><Icon name="menu" /></button></div></header>
       <div className="puzzle-content">
         <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
           const solved = session.solvedWords.includes(word);
