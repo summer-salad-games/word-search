@@ -271,7 +271,9 @@ function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords, on
         const solvedColor = solvedCells.get(key);
         const centerX = (session.puzzle.size.width - 1) / 2;
         const centerY = (session.puzzle.size.height - 1) / 2;
-        const entranceDelay = Math.round((Math.abs(cell.position.x - centerX) + Math.abs(cell.position.y - centerY)) * 25);
+        const distanceFromCenter = Math.abs(cell.position.x - centerX) + Math.abs(cell.position.y - centerY);
+        const entranceBand = Math.min(6, Math.floor(distanceFromCenter / 2));
+        const entranceDelay = entranceBand * 45;
         const cellStyle = {
           "--cell-delay": `${entranceDelay}ms`,
           ...(solvedColor === undefined ? {} : { "--selection-color": solvedColor }),
@@ -460,7 +462,7 @@ function Game({ initialSession, colorMode, feedbackEnabled, isFinalPuzzle, compl
         <section className="word-list" aria-label="Words to find">{session.targetWords.map((word, index) => {
           const solved = session.solvedWords.includes(word);
           const style = {
-            "--word-delay": `${Math.min(index * 40, 400)}ms`,
+            "--word-delay": `${Math.min(index * 20, 140)}ms`,
             ...(solved ? { "--selection-color": session.solvedColors[word] ?? colors.get(word) } : {}),
           } as CSSProperties;
           return <span key={word} className={`word-chip${solved ? " is-solved" : ""}`} style={style}>{word}</span>;
