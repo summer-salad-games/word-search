@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { calculatePuzzleProfile, createSession, GENERATOR_VERSION } from "../src/app-model.js";
-import { loadCompletedThemeIds, loadFeedbackEnabled, loadHistory, resetApplicationState, saveCompletion, saveFeedbackEnabled } from "../src/persistence.js";
+import { loadCompletedThemeIds, loadFeedbackSettings, loadHistory, resetApplicationState, saveCompletion, saveFeedbackSettings } from "../src/persistence.js";
 import { THEMES } from "../src/themes.js";
 
 describe("playthrough persistence", () => {
@@ -49,9 +49,9 @@ describe("playthrough persistence", () => {
     expect(await loadHistory()).toEqual([]);
   });
 
-  it("defaults feedback on and persists the player's preference", async () => {
-    expect(await loadFeedbackEnabled()).toBe(true);
-    await saveFeedbackEnabled(false);
-    expect(await loadFeedbackEnabled()).toBe(false);
+  it("defaults feedback to maximum volume and persists independent preferences", async () => {
+    expect(await loadFeedbackSettings()).toEqual({ volume: 1, vibrationEnabled: true });
+    await saveFeedbackSettings({ volume: 0.37, vibrationEnabled: false });
+    expect(await loadFeedbackSettings()).toEqual({ volume: 0.37, vibrationEnabled: false });
   });
 });

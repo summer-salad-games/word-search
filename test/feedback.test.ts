@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const settings = { volume: 1, vibrationEnabled: true } as const;
+
 function audioContextStub() {
   const start = vi.fn();
   let resolveResume: (() => void) | undefined;
@@ -44,12 +46,12 @@ describe("feedback audio lifecycle", () => {
     const { context, start, finishResume } = audioContextStub();
     const { playFeedback, startFeedback } = await import("../src/feedback.js");
 
-    const ready = startFeedback(true);
+    const ready = startFeedback(settings);
     expect(context.resume).toHaveBeenCalledOnce();
     expect(start).not.toHaveBeenCalled();
     finishResume();
     await ready;
-    playFeedback("cell", true);
+    playFeedback("cell", settings);
 
     expect(start).toHaveBeenCalled();
   });
@@ -58,7 +60,7 @@ describe("feedback audio lifecycle", () => {
     const { context, start, finishResume } = audioContextStub();
     const { playFeedback } = await import("../src/feedback.js");
 
-    playFeedback("cell", true);
+    playFeedback("cell", settings);
     finishResume();
     await Promise.resolve();
 
@@ -70,7 +72,7 @@ describe("feedback audio lifecycle", () => {
     const { context, start } = audioContextStub();
     const { startFeedback } = await import("../src/feedback.js");
 
-    void startFeedback(true);
+    void startFeedback(settings);
 
     expect(context.resume).toHaveBeenCalledOnce();
     expect(start).not.toHaveBeenCalled();
@@ -80,10 +82,10 @@ describe("feedback audio lifecycle", () => {
     const { context, start, finishResume } = audioContextStub();
     const { playFeedback, startFeedback } = await import("../src/feedback.js");
 
-    const ready = startFeedback(true);
+    const ready = startFeedback(settings);
     finishResume();
     await ready;
-    playFeedback("start", true);
+    playFeedback("start", settings);
 
     expect(context.resume).toHaveBeenCalledOnce();
     expect(start).toHaveBeenCalledTimes(2);

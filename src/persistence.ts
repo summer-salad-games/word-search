@@ -1,6 +1,7 @@
 import { openDB, type DBSchema } from "idb";
 import { z } from "zod";
 import { GENERATOR_VERSION, type GameSession, type PuzzleProfile } from "./app-model.js";
+import type { FeedbackSettings } from "./feedback.js";
 
 export type ColorMode = "light" | "dark" | "system";
 
@@ -18,7 +19,7 @@ export interface HistoryRecord {
 }
 
 interface WordSearchDatabase extends DBSchema {
-  state: { key: "active-game" | "color-mode" | "completed-themes" | "feedback-enabled"; value: unknown };
+  state: { key: "active-game" | "color-mode" | "completed-themes" | "feedback-enabled" | "volume" | "vibration-enabled"; value: unknown };
   history: { key: string; value: HistoryRecord; indexes: { "by-completed": string } };
 }
 
@@ -90,13 +91,28 @@ export async function saveColorMode(mode: ColorMode): Promise<void> {
   await (await database).put("state", mode, "color-mode");
 }
 
-export async function loadFeedbackEnabled(): Promise<boolean> {
-  const value = await (await database).get("state", "feedback-enabled");
-  return typeof value === "boolean" ? value : true;
+export async function loadFeedbackSettings(): Promise<FeedbackSettings> {
+  const db = await database;
+  const [volume, vibrationEnabled, legacyEnabled] = await Promise.all([
+    db.get("state", "volume"),
+    db.get("state", "vibration-enabled"),
+    db.get("state", "feedback-enabled"),
+  ]);
+  const legacy = typeof legacyEnabled === "boolean" ? legacyEnabled : true;
+  return {
+    volume: typeof volume === "number" && Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : legacy ? 1 : 0,
+    vibrationEnabled: typeof vibrationEnabled === "boolean" ? vibrationEnabled : legacy,
+  };
 }
 
-export async function saveFeedbackEnabled(enabled: boolean): Promise<void> {
-  await (await database).put("state", enabled, "feedback-enabled");
+export async function saveFeedbackSettings(settings: FeedbackSettings): Promise<void> {
+  const db = await database;
+  const transaction = db.transaction("state", "readwrite");
+  await Promise.all([
+    transaction.store.put(Math.min(1, Math.max(0, settings.volume)), "volume"),
+    transaction.store.put(settings.vibrationEnabled, "vibration-enabled"),
+    transaction.done,
+  ]);
 }
 
 export async function saveCompletion(record: HistoryRecord): Promise<readonly string[]> {

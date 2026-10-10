@@ -1,5 +1,10 @@
 type FeedbackKind = "start" | "cell" | "reject" | "word" | "complete";
 
+export interface FeedbackSettings {
+  readonly volume: number;
+  readonly vibrationEnabled: boolean;
+}
+
 interface FeedbackNote {
   readonly frequency: number;
   readonly endFrequency?: number;
@@ -45,7 +50,7 @@ function currentContext(): AudioContext | undefined {
   return audioContext;
 }
 
-function scheduleNotes(context: AudioContext, notes: readonly FeedbackNote[]): void {
+function scheduleNotes(context: AudioContext, notes: readonly FeedbackNote[], volume: number): void {
   const startedAt = context.currentTime + 0.015;
   for (const note of notes) {
     const oscillator = context.createOscillator();
@@ -56,7 +61,7 @@ function scheduleNotes(context: AudioContext, notes: readonly FeedbackNote[]): v
     oscillator.frequency.setValueAtTime(note.frequency, noteStart);
     if (note.endFrequency !== undefined) oscillator.frequency.exponentialRampToValueAtTime(note.endFrequency, noteEnd);
     gain.gain.setValueAtTime(0.0001, noteStart);
-    gain.gain.exponentialRampToValueAtTime(note.volume, noteStart + 0.004);
+    gain.gain.exponentialRampToValueAtTime(note.volume * Math.min(1, Math.max(0, volume)) * 2, noteStart + 0.004);
     gain.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
     oscillator.connect(gain).connect(context.destination);
     oscillator.start(noteStart);
@@ -64,16 +69,16 @@ function scheduleNotes(context: AudioContext, notes: readonly FeedbackNote[]): v
   }
 }
 
-function playNotes(notes: readonly FeedbackNote[]): void {
+function playNotes(notes: readonly FeedbackNote[], volume: number): void {
   if (document.hidden) return;
   const context = currentContext();
   if (context === undefined || context.state === "closed") return;
   if (context.state === "running") {
-    scheduleNotes(context, notes);
+    scheduleNotes(context, notes, volume);
     return;
   }
   void context.resume().then(() => {
-    if (context.state === "running") scheduleNotes(context, notes);
+    if (context.state === "running") scheduleNotes(context, notes, volume);
   }).catch(() => undefined);
 }
 
@@ -82,29 +87,28 @@ function vibrate(pattern: number | readonly number[]): void {
   navigator.vibrate(typeof pattern === "number" ? pattern : [...pattern]);
 }
 
-export async function startFeedback(enabled: boolean): Promise<void> {
-  hapticsUnlocked = enabled;
-  if (!enabled || document.hidden) return;
+export async function startFeedback(settings: FeedbackSettings): Promise<void> {
+  hapticsUnlocked = settings.vibrationEnabled;
+  if (settings.volume <= 0 || document.hidden) return;
   const context = currentContext();
   if (context?.state !== "suspended") return;
   try { await context.resume(); }
   catch { /* Sound remains unavailable; gameplay can still start. */ }
 }
 
-export function playFeedback(kind: FeedbackKind, enabled: boolean): void {
-  if (!enabled) return;
+export function playFeedback(kind: FeedbackKind, settings: FeedbackSettings): void {
   if (kind === "cell") {
     const now = performance.now();
     if (now - lastCellFeedbackAt < 28) return;
     lastCellFeedbackAt = now;
     previousCellFrequency = previousCellFrequency === 530 ? 580 : 530;
-    playNotes(NOTES.cell.map((note, index) => index === 0
+    if (settings.volume > 0) playNotes(NOTES.cell.map((note, index) => index === 0
       ? { ...note, frequency: previousCellFrequency, endFrequency: previousCellFrequency - 140 }
-      : note));
-    vibrate(6);
+      : note), settings.volume);
+    if (settings.vibrationEnabled) vibrate(6);
     return;
   }
-  playNotes(NOTES[kind]);
-  if (kind === "word") vibrate(12);
-  if (kind === "complete") vibrate([12, 38, 16]);
+  if (settings.volume > 0) playNotes(NOTES[kind], settings.volume);
+  if (kind === "word" && settings.vibrationEnabled) vibrate(12);
+  if (kind === "complete" && settings.vibrationEnabled) vibrate([12, 38, 16]);
 }

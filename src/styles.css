@@ -110,6 +110,23 @@ button { font: inherit; }
 .dialog h2 { margin: 4px 0 0; font-size: 2rem; letter-spacing: -.04em; }
 .dialog-copy { margin: 16px 0 0; color: var(--muted); line-height: 1.55; }
 .reset-actions { display: grid; gap: 10px; margin-top: 26px; }
+.settings-dialog { display: flex; flex-direction: column; }
+.settings-list { display: grid; gap: 12px; margin-top: 26px; }
+.settings-list > label, .theme-setting { min-height: 68px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-soft); }
+.settings-list strong { display: block; font-size: .9rem; }
+.settings-list small { display: block; margin-top: 3px; color: var(--muted); font-size: .72rem; }
+.volume-setting { flex-direction: column; align-items: stretch !important; gap: 11px !important; }
+.volume-setting > span { display: flex; align-items: center; justify-content: space-between; }
+.volume-setting output { color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.volume-setting input { width: 100%; accent-color: var(--text); cursor: pointer; }
+.check-setting input { width: 22px; height: 22px; margin: 0; accent-color: var(--text); cursor: pointer; }
+.theme-toggle { display: grid; grid-template-columns: repeat(2, 42px); gap: 5px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+.theme-toggle button { width: 42px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer; }
+.theme-toggle button[aria-pressed="true"] { background: var(--text); color: var(--background); }
+.theme-toggle svg { width: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.reset-all-button { align-self: center; margin-top: 30px; padding: 9px 14px; border: 0; background: transparent; color: #b63838; font-size: .78rem; font-weight: 720; cursor: pointer; }
+:root[data-theme="dark"] .reset-all-button { color: #ff8b8b; }
+.settings-version { margin: 18px 0 0; color: var(--muted); font-size: .58rem; font-weight: 650; letter-spacing: .08em; text-align: center; text-transform: uppercase; }
 .history-summary { margin-top: 24px; padding: 16px; border-radius: 16px; background: var(--surface-soft); }
 .history-summary dl { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 12px 0 0; }
 .history-summary dl div { display: grid; gap: 3px; }

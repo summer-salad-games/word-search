@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
-import { calculatePuzzleProfile, createSession, extendSelection, formatCount, formatDuration, gameReducer, pathsMatch, positionKey, resetSession, GENERATOR_VERSION, type GameSession } from "./app-model.js";
-import { playFeedback, startFeedback } from "./feedback.js";
-import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadFeedbackEnabled, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, saveFeedbackEnabled, type ColorMode, type HistoryRecord } from "./persistence.js";
+import packageMetadata from "../package.json";
+import { calculatePuzzleProfile, createSession, extendSelection, formatCount, formatDuration, gameReducer, pathsMatch, positionKey, GENERATOR_VERSION, type GameSession } from "./app-model.js";
+import { playFeedback, startFeedback, type FeedbackSettings } from "./feedback.js";
+import { clearActiveGame, loadActiveGame, loadColorMode, loadCompletedThemeIds, loadFeedbackSettings, loadHistory, resetApplicationState, saveActiveGame, saveColorMode, saveCompletion, saveFeedbackSettings, type ColorMode, type HistoryRecord } from "./persistence.js";
 import { getTheme, SELECTION_COLORS, selectRandomTheme, THEMES } from "./themes.js";
 import { changeStartMenuLetters, createStartMenuGrid } from "./start-menu.js";
 import type { Position, PuzzleCell } from "./types.js";
@@ -18,22 +19,20 @@ declare global {
   interface Window { wordSearchDebug?: WordSearchDebugApi }
 }
 
-function Icon({ name }: { readonly name: "history" | "reset" | "moon" | "sun" | "close" | "feedback" | "muted" }) {
+function Icon({ name }: { readonly name: "history" | "menu" | "moon" | "sun" | "close" }) {
   const paths = {
     history: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></>,
     moon: <path d="M20 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/>,
     sun: <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></>,
     close: <path d="m6 6 12 12M18 6 6 18"/>,
-    reset: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></>,
-    feedback: <><path d="M11 5 6 9H2v6h4l5 4Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12"/></>,
-    muted: <><path d="M11 5 6 9H2v6h4l5 4Z"/><path d="m16 9 5 5M21 9l-5 5"/></>,
+    menu: <><path d="M5 7h14M5 12h14M5 17h14"/></>,
   } as const;
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
 
-function StartScreen({ hasProgress, feedbackEnabled, onStart }: {
+function StartScreen({ hasProgress, feedbackSettings, onStart }: {
   readonly hasProgress: boolean;
-  readonly feedbackEnabled: boolean;
+  readonly feedbackSettings: FeedbackSettings;
   readonly onStart: () => Promise<void>;
 }) {
   const [starting, setStarting] = useState(false);
@@ -83,8 +82,8 @@ function StartScreen({ hasProgress, feedbackEnabled, onStart }: {
   const start = async () => {
     if (starting) return;
     setStarting(true);
-    await startFeedback(feedbackEnabled);
-    playFeedback("start", feedbackEnabled);
+    await startFeedback(feedbackSettings);
+    playFeedback("start", feedbackSettings);
     await onStart();
   };
 
@@ -467,31 +466,48 @@ function CollectionCompleteDialog({ session, records, onReset }: { readonly sess
   );
 }
 
-function ResetDialog({ onBoard, onEverything, onClose }: {
-  readonly onBoard: () => void; readonly onEverything: () => void; readonly onClose: () => void;
+function SettingsDialog({ settings, colorMode, onSettings, onColorMode, onReset, onClose }: {
+  readonly settings: FeedbackSettings;
+  readonly colorMode: ColorMode;
+  readonly onSettings: (settings: FeedbackSettings) => void;
+  readonly onColorMode: (mode: ColorMode) => void;
+  readonly onReset: () => void;
+  readonly onClose: () => void;
 }) {
+  const updateSettings = (next: FeedbackSettings) => {
+    onSettings(next);
+    void startFeedback(next);
+  };
   return (
-    <Modal labelledBy="reset-title" className="reset-dialog" onClose={onClose}>
-        <p className="eyebrow">Reset</p><h2 id="reset-title">What would you like to reset?</h2>
-        <p className="dialog-copy">Reset this board to replay the same puzzle, or erase everything and start as if you opened the game for the first time.</p>
-        <div className="reset-actions">
-          <button className="primary-button" onClick={onBoard}>Reset current board</button>
-          <button className="secondary-button danger-button" onClick={onEverything}>Reset everything</button>
-          <button className="secondary-button" onClick={onClose}>Cancel</button>
-        </div>
+    <Modal labelledBy="settings-title" className="settings-dialog" onClose={onClose}>
+      <header><div><p className="eyebrow">Game menu</p><h2 id="settings-title">Settings</h2></div><button className="icon-button" onClick={onClose} aria-label="Close menu"><Icon name="close" /></button></header>
+      <div className="settings-list">
+        <label className="volume-setting" htmlFor="volume"><span><strong>Volume</strong><output htmlFor="volume">{Math.round(settings.volume * 100)}%</output></span><input id="volume" aria-label="Volume" type="range" min="0" max="100" step="1" value={Math.round(settings.volume * 100)} onChange={(event) => updateSettings({ ...settings, volume: Number(event.currentTarget.value) / 100 })} /></label>
+        <label className="check-setting"><span><strong>Vibration</strong><small>Where supported</small></span><input type="checkbox" checked={settings.vibrationEnabled} onChange={(event) => updateSettings({ ...settings, vibrationEnabled: event.currentTarget.checked })} /></label>
+        <div className="theme-setting"><strong>Appearance</strong><div className="theme-toggle" role="group" aria-label="Color mode"><button type="button" aria-label="Use light mode" aria-pressed={colorMode === "light"} onClick={() => onColorMode("light")}><Icon name="sun" /></button><button type="button" aria-label="Use dark mode" aria-pressed={colorMode === "dark"} onClick={() => onColorMode("dark")}><Icon name="moon" /></button></div></div>
+      </div>
+      <button className="reset-all-button" onClick={onReset}>Reset all progress</button>
+      <p className="settings-version">Version {packageMetadata.version}</p>
     </Modal>
   );
 }
 
-function Game({ initialSession, colorMode, feedbackEnabled, isFinalPuzzle, completedCount, lifetimeRecords, onColorMode, onFeedbackEnabled, onSession, onComplete, onNext, onReset, onResetEverything, onDebugLoadTheme }: {
+function ResetEverythingDialog({ onConfirm, onClose }: { readonly onConfirm: () => void; readonly onClose: () => void }) {
+  return <Modal labelledBy="reset-title" className="reset-dialog" onClose={onClose}>
+    <p className="eyebrow">Reset everything</p><h2 id="reset-title">Erase all progress?</h2>
+    <p className="dialog-copy">This permanently removes the current puzzle, history, settings, and lifetime progress.</p>
+    <div className="reset-actions"><button className="secondary-button danger-button" onClick={onConfirm}>Reset everything</button><button className="secondary-button" onClick={onClose}>Cancel</button></div>
+  </Modal>;
+}
+
+function Game({ initialSession, colorMode, feedbackSettings, isFinalPuzzle, completedCount, lifetimeRecords, onColorMode, onFeedbackSettings, onSession, onComplete, onNext, onResetEverything, onDebugLoadTheme }: {
   readonly initialSession: GameSession; readonly colorMode: ColorMode; readonly onColorMode: (mode: ColorMode) => void;
-  readonly feedbackEnabled: boolean; readonly onFeedbackEnabled: (enabled: boolean) => void;
+  readonly feedbackSettings: FeedbackSettings; readonly onFeedbackSettings: (settings: FeedbackSettings) => void;
   readonly isFinalPuzzle: boolean;
   readonly completedCount: number;
   readonly lifetimeRecords: readonly HistoryRecord[];
   readonly onSession: (session: GameSession) => void; readonly onNext: (session: GameSession) => void;
   readonly onComplete: (session: GameSession) => void;
-  readonly onReset: (session: GameSession) => void;
   readonly onResetEverything: () => void;
   readonly onDebugLoadTheme: (idOrTitle: string) => string;
 }) {
@@ -500,13 +516,14 @@ function Game({ initialSession, colorMode, feedbackEnabled, isFinalPuzzle, compl
   const [history, setHistory] = useState<HistoryRecord[]>([]);
   const [hidden, setHidden] = useState(document.hidden);
   const [debugWords, setDebugWords] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [selectionIndex, setSelectionIndex] = useState(0);
   const theme = getTheme(session.themeId);
   const colors = useMemo(() => new Map(session.targetWords.map((word, index) => [word, theme.colors[index % theme.colors.length]!])), [session.targetWords, theme.colors]);
   const currentColor = theme.colors[selectionIndex % theme.colors.length]!;
-  const { elapsed, getElapsed, pause } = useGameTimer(session, historyOpen || resetOpen || hidden, (value) => dispatch({ type: "set-elapsed", elapsedMs: value }));
-  const cellFeedback = useCallback((kind: "cell" | "reject") => playFeedback(kind, feedbackEnabled), [feedbackEnabled]);
+  const { elapsed, getElapsed, pause } = useGameTimer(session, historyOpen || menuOpen || resetOpen || hidden, (value) => dispatch({ type: "set-elapsed", elapsedMs: value }));
+  const cellFeedback = useCallback((kind: "cell" | "reject") => playFeedback(kind, feedbackSettings), [feedbackSettings]);
 
   useEffect(() => onSession(session), [onSession, session]);
   useEffect(() => {
@@ -539,7 +556,7 @@ function Game({ initialSession, colorMode, feedbackEnabled, isFinalPuzzle, compl
     const currentElapsed = getElapsed();
     dispatch({ type: "selection", elapsedMs: currentElapsed, color: currentColor, letterCount: path.length, ...(match === undefined ? {} : { word: match.word }) });
     if (match !== undefined) {
-      playFeedback(session.solvedWords.length + 1 === session.targetWords.length ? "complete" : "word", feedbackEnabled);
+      playFeedback(session.solvedWords.length + 1 === session.targetWords.length ? "complete" : "word", feedbackSettings);
     }
     setSelectionIndex((current) => current + 1);
     return match?.word;
@@ -554,7 +571,7 @@ function Game({ initialSession, colorMode, feedbackEnabled, isFinalPuzzle, compl
 
   return (
     <main className={`app-shell${session.profile.columns < 8 ? " mobile-layout" : ""}`}>
-      <header className="topbar"><div><p className="eyebrow game-label">Word search</p><h1>{theme.title}</h1></div><div className="topbar-actions"><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => { const enabled = !feedbackEnabled; onFeedbackEnabled(enabled); void startFeedback(enabled); }} aria-label={feedbackEnabled ? "Disable sound and haptics" : "Enable sound and haptics"} aria-pressed={feedbackEnabled}><Icon name={feedbackEnabled ? "feedback" : "muted"} /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
+      <header className="topbar"><div><p className="eyebrow game-label">Word search</p><h1>{theme.title}</h1></div><div className="topbar-actions"><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button><button className="icon-button" onClick={() => { pause(); setMenuOpen(true); }} aria-label="Open menu"><Icon name="menu" /></button></div></header>
       <div className="puzzle-content">
         <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
           const solved = session.solvedWords.includes(word);
@@ -565,7 +582,8 @@ function Game({ initialSession, colorMode, feedbackEnabled, isFinalPuzzle, compl
       </div>
       <footer className="game-footer"><span>{session.solvedWords.length} / {session.targetWords.length} found</span><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span></footer>
       {historyOpen && <HistoryDialog records={history} completedCount={completedCount} onClose={() => setHistoryOpen(false)} />}
-      {resetOpen && <ResetDialog onBoard={() => onReset(session)} onEverything={onResetEverything} onClose={() => setResetOpen(false)} />}
+      {menuOpen && <SettingsDialog settings={feedbackSettings} colorMode={colorMode} onSettings={onFeedbackSettings} onColorMode={onColorMode} onReset={() => { setMenuOpen(false); setResetOpen(true); }} onClose={() => setMenuOpen(false)} />}
+      {resetOpen && <ResetEverythingDialog onConfirm={onResetEverything} onClose={() => setResetOpen(false)} />}
       {session.status === "completed" && (isFinalPuzzle
         ? <CollectionCompleteDialog session={session} records={lifetimeRecords} onReset={onResetEverything} />
         : <WinDialog session={session} onNext={() => onNext(session)} />)}
@@ -578,7 +596,7 @@ export default function App() {
   const initialized = useRef(false);
   const [session, setSession] = useState<GameSession>();
   const [colorMode, setColorMode] = useState<ColorMode>("system");
-  const [feedbackEnabled, setFeedbackEnabled] = useState(true);
+  const [feedbackSettings, setFeedbackSettings] = useState<FeedbackSettings>({ volume: 1, vibrationEnabled: true });
   const [started, setStarted] = useState(false);
   const [hasProgress, setHasProgress] = useState(false);
   const [completedThemeIds, setCompletedThemeIds] = useState<readonly string[]>([]);
@@ -588,13 +606,13 @@ export default function App() {
   useEffect(() => {
     if (!orientation.supported || initialized.current) return;
     initialized.current = true;
-    void Promise.all([loadActiveGame(), loadColorMode(), loadFeedbackEnabled(), loadCompletedThemeIds(), loadHistory()]).then(([active, mode, persistedFeedbackEnabled, persistedCompleted, persistedHistory]) => {
+    void Promise.all([loadActiveGame(), loadColorMode(), loadFeedbackSettings(), loadCompletedThemeIds(), loadHistory()]).then(([active, mode, persistedFeedbackSettings, persistedCompleted, persistedHistory]) => {
       const resolvedMode = mode === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : mode;
       const knownIds = new Set(THEMES.map((theme) => theme.id));
       const completed = persistedCompleted.filter((id) => knownIds.has(id));
       const activeGame = active !== undefined && knownIds.has(active.themeId) ? active : undefined;
       setColorMode(resolvedMode);
-      setFeedbackEnabled(persistedFeedbackEnabled);
+      setFeedbackSettings(persistedFeedbackSettings);
       setHasProgress(activeGame !== undefined || completed.length > 0 || persistedHistory.length > 0);
       setCompletedThemeIds(completed);
       setLifetimeRecords(persistedHistory);
@@ -616,19 +634,14 @@ export default function App() {
   }, [colorMode]);
 
   const updateMode = (mode: ColorMode) => { setColorMode(mode); void saveColorMode(mode); };
-  const updateFeedbackEnabled = (enabled: boolean) => { setFeedbackEnabled(enabled); void saveFeedbackEnabled(enabled); };
+  const updateFeedbackSettings = (settings: FeedbackSettings) => { setFeedbackSettings(settings); void saveFeedbackSettings(settings); };
   const updateSession = useCallback((next: GameSession) => { setSession(next); void saveActiveGame(next); }, []);
-  const resetProgress = useCallback((current: GameSession) => {
-    const reset = resetSession(current);
-    setSession(reset);
-    void clearActiveGame().then(() => saveActiveGame(reset));
-  }, []);
   const resetEverything = useCallback(() => {
     void resetApplicationState().then(() => {
       const mode: ColorMode = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
       const fresh = createSession(selectRandomTheme()!, profileForCurrentScreen());
       setColorMode(mode);
-      setFeedbackEnabled(true);
+      setFeedbackSettings({ volume: 1, vibrationEnabled: true });
       setCompletedThemeIds([]);
       setLifetimeRecords([]);
       setSession(fresh);
@@ -674,7 +687,7 @@ export default function App() {
   if (!orientation.supported) return <div className="orientation-guard"><div className="phone-icon">↻</div><strong>Turn your device</strong><span>This puzzle is designed for {orientation.requiredOrientation} play.</span></div>;
   if (error !== undefined) return <main className="loading-screen"><p className="eyebrow">Something went wrong</p><h1>{error}</h1><button className="primary-button" onClick={() => location.reload()}>Try again</button></main>;
   if (session === undefined) return <main className="loading-screen"><div className="loader"/><p>Preparing your puzzle…</p></main>;
-  if (!started) return <StartScreen hasProgress={hasProgress} feedbackEnabled={feedbackEnabled} onStart={async () => setStarted(true)} />;
+  if (!started) return <StartScreen hasProgress={hasProgress} feedbackSettings={feedbackSettings} onStart={async () => setStarted(true)} />;
   const completedBeforeCurrent = completedThemeIds.filter((id) => id !== session.themeId).length;
-  return <Game key={session.id} initialSession={session} colorMode={colorMode} feedbackEnabled={feedbackEnabled} isFinalPuzzle={completedBeforeCurrent === THEMES.length - 1} completedCount={completedThemeIds.length} lifetimeRecords={lifetimeRecords} onColorMode={updateMode} onFeedbackEnabled={updateFeedbackEnabled} onSession={updateSession} onComplete={completePuzzle} onNext={nextPuzzle} onReset={resetProgress} onResetEverything={resetEverything} onDebugLoadTheme={loadDebugTheme}/>;
+  return <Game key={session.id} initialSession={session} colorMode={colorMode} feedbackSettings={feedbackSettings} isFinalPuzzle={completedBeforeCurrent === THEMES.length - 1} completedCount={completedThemeIds.length} lifetimeRecords={lifetimeRecords} onColorMode={updateMode} onFeedbackSettings={updateFeedbackSettings} onSession={updateSession} onComplete={completePuzzle} onNext={nextPuzzle} onResetEverything={resetEverything} onDebugLoadTheme={loadDebugTheme}/>;
 }

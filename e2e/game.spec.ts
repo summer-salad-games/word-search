@@ -156,12 +156,6 @@ test("rolls an incorrect selection back cell by cell", async ({ page }) => {
   await expect(page.locator(".puzzle-cell.is-active")).toHaveCount(0);
   await expect(page.locator(".puzzle-grid")).not.toHaveClass(/is-locked/);
   await expect(page.locator(".game-footer")).not.toContainText("attempt");
-  const letters = await page.locator(".puzzle-cell").allTextContents();
-  await page.getByRole("button", { name: "Reset progress" }).click();
-  await expect(page.getByRole("dialog", { name: "What would you like to reset?" })).toBeVisible();
-  await page.getByRole("button", { name: "Reset current board" }).click();
-  await expect(page.locator(".game-footer")).toContainText("00:00");
-  expect(await page.locator(".puzzle-cell").allTextContents()).toEqual(letters);
 });
 
 test("fits the page and toggles from system dark mode on the first click", async ({ page }) => {
@@ -169,7 +163,8 @@ test("fits the page and toggles from system dark mode on the first click", async
   await enterGame(page);
   expect(await page.evaluate(() => ({ width: document.documentElement.scrollWidth - document.documentElement.clientWidth, height: document.documentElement.scrollHeight - document.documentElement.clientHeight }))).toEqual({ width: 0, height: 0 });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.getByRole("button", { name: "Toggle color mode" }).click();
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("button", { name: "Use light mode" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.locator(".puzzle-grid")).toHaveCSS("cursor", "default");
   await expect(page.locator(".puzzle-cell").first()).toHaveCSS("user-select", "none");
@@ -192,13 +187,22 @@ test("fits the page and toggles from system dark mode on the first click", async
   expect(Math.abs(spacing.centerOffset)).toBeLessThanOrEqual(1);
 });
 
-test("persists the sound and haptics preference", async ({ page }) => {
+test("pauses the timer and persists volume and vibration preferences", async ({ page }) => {
   await enterGame(page);
-  await page.getByRole("button", { name: "Disable sound and haptics" }).click();
-  await expect(page.getByRole("button", { name: "Enable sound and haptics" })).toHaveAttribute("aria-pressed", "false");
+  await page.waitForTimeout(1_100);
+  await page.getByRole("button", { name: "Open menu" }).click();
+  const timerBefore = await page.locator(".game-footer .timer").textContent();
+  const volume = page.getByRole("slider", { name: "Volume" });
+  await volume.fill("37");
+  await page.getByRole("checkbox", { name: /Vibration/ }).uncheck();
+  await page.waitForTimeout(1_100);
+  await expect(page.locator(".game-footer .timer")).toHaveText(timerBefore!);
+  await page.getByRole("button", { name: "Close menu" }).click();
   await page.reload();
   await enterGame(page, false);
-  await expect(page.getByRole("button", { name: "Enable sound and haptics" })).toBeVisible();
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await expect(page.getByRole("slider", { name: "Volume" })).toHaveValue("37");
+  await expect(page.getByRole("checkbox", { name: /Vibration/ })).not.toBeChecked();
 });
 
 test("fits a large iPhone when Safari exposes less height than the physical screen", async ({ browser }) => {
@@ -214,10 +218,11 @@ test("fits a large iPhone when Safari exposes less height than the physical scre
   await expect(grid).toHaveAttribute("aria-label", /^7 by 10/);
   await expect(page.locator(".game-label")).toHaveCSS("white-space", "nowrap");
   await expect(page.locator(".game-footer .timer")).toBeVisible();
-  const feedbackButton = page.locator(".topbar-actions button[aria-pressed]");
-  const buttonBackground = await feedbackButton.evaluate((element) => getComputedStyle(element).backgroundColor);
-  await feedbackButton.click();
-  await expect(feedbackButton).toHaveCSS("background-color", buttonBackground);
+  const menuButton = page.getByRole("button", { name: "Open menu" });
+  const buttonBackground = await menuButton.evaluate((element) => getComputedStyle(element).backgroundColor);
+  await menuButton.tap();
+  await expect(menuButton).toHaveCSS("background-color", buttonBackground);
+  await page.getByRole("button", { name: "Close menu" }).tap();
   const bounds = await page.evaluate(() => {
     const header = document.querySelector(".topbar")!.getBoundingClientRect();
     const words = document.querySelector(".word-list")!.getBoundingClientRect();
@@ -371,7 +376,9 @@ test("exposes console-only word highlighting in both color modes", async ({ page
   const highlighted = page.locator(".puzzle-cell.is-debug");
   await expect(highlighted.first()).toHaveCSS("background-color", "rgb(119, 122, 125)");
   expect(await highlighted.count()).toBeGreaterThan(20);
-  await page.getByRole("button", { name: "Toggle color mode" }).click();
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("button", { name: "Use dark mode" }).click();
+  await page.getByRole("button", { name: "Close menu" }).click();
   await expect(highlighted.first()).toHaveCSS("background-color", "rgb(160, 163, 166)");
   await page.evaluate(() => window.wordSearchDebug?.hideWords());
   await expect(highlighted).toHaveCount(0);
@@ -387,7 +394,9 @@ test("loads a requested theme through the console debug API", async ({ page }) =
 test("can cancel reset or erase all application state", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await enterGame(page);
-  await page.getByRole("button", { name: "Toggle color mode" }).click();
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("button", { name: "Use light mode" }).click();
+  await page.getByRole("button", { name: "Close menu" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -400,11 +409,14 @@ test("can cancel reset or erase all application state", async ({ page }) => {
     });
     db.close();
   });
-  await page.getByRole("button", { name: "Reset progress" }).click();
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("button", { name: "Reset all progress" }).click();
+  await expect(page.getByRole("dialog", { name: "Erase all progress?" })).toBeVisible();
   await page.getByRole("button", { name: "Cancel" }).click();
-  await expect(page.getByRole("dialog", { name: "What would you like to reset?" })).not.toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Erase all progress?" })).not.toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await page.getByRole("button", { name: "Reset progress" }).click();
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("button", { name: "Reset all progress" }).click();
   await page.getByRole("button", { name: "Reset everything" }).click();
   await expect(page.getByRole("button", { name: "New Game" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
