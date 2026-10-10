@@ -269,15 +269,7 @@ function PuzzleGrid({ session, colors, onSelection, currentColor, debugWords, on
       {session.puzzle.grid.flatMap((row) => row.map((cell: PuzzleCell) => {
         const key = positionKey(cell.position);
         const solvedColor = solvedCells.get(key);
-        const centerX = (session.puzzle.size.width - 1) / 2;
-        const centerY = (session.puzzle.size.height - 1) / 2;
-        const distanceFromCenter = Math.abs(cell.position.x - centerX) + Math.abs(cell.position.y - centerY);
-        const entranceBand = Math.min(6, Math.floor(distanceFromCenter / 2));
-        const entranceDelay = entranceBand * 45;
-        const cellStyle = {
-          "--cell-delay": `${entranceDelay}ms`,
-          ...(solvedColor === undefined ? {} : { "--selection-color": solvedColor }),
-        } as CSSProperties;
+        const cellStyle = solvedColor === undefined ? undefined : { "--selection-color": solvedColor } as CSSProperties;
         return (
           <div
             key={key}
@@ -459,12 +451,9 @@ function Game({ initialSession, colorMode, feedbackEnabled, isFinalPuzzle, compl
     <main className={`app-shell${session.profile.columns < 8 ? " mobile-layout" : ""}`}>
       <header className="topbar"><div><p className="eyebrow game-label"><span>Word search</span><span className="version-tag">{__APP_VERSION__}</span></p><h1>{theme.title}</h1></div><div className="topbar-actions"><button className="icon-button" onClick={() => setResetOpen(true)} aria-label="Reset progress"><Icon name="reset" /></button><button className="icon-button" onClick={() => { const enabled = !feedbackEnabled; onFeedbackEnabled(enabled); if (enabled) playFeedback("word", true); }} aria-label={feedbackEnabled ? "Disable sound and haptics" : "Enable sound and haptics"} aria-pressed={feedbackEnabled}><Icon name={feedbackEnabled ? "feedback" : "muted"} /></button><button className="icon-button" onClick={() => onColorMode(colorMode === "dark" ? "light" : "dark")} aria-label="Toggle color mode"><Icon name={colorMode === "dark" ? "sun" : "moon"} /></button><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button></div></header>
       <div className="puzzle-content">
-        <section className="word-list" aria-label="Words to find">{session.targetWords.map((word, index) => {
+        <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
           const solved = session.solvedWords.includes(word);
-          const style = {
-            "--word-delay": `${Math.min(index * 20, 140)}ms`,
-            ...(solved ? { "--selection-color": session.solvedColors[word] ?? colors.get(word) } : {}),
-          } as CSSProperties;
+          const style = solved ? { "--selection-color": session.solvedColors[word] ?? colors.get(word) } as CSSProperties : undefined;
           return <span key={word} className={`word-chip${solved ? " is-solved" : ""}`} style={style}>{word}</span>;
         })}</section>
         <section className="board-stage"><PuzzleGrid session={session} colors={colors} onSelection={onSelection} currentColor={currentColor} debugWords={debugWords} onCellFeedback={cellFeedback} onGestureCompleted={completeGesture} /></section>
