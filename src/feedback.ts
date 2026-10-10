@@ -42,6 +42,7 @@ let audioContext: AudioContext | undefined;
 let resumePromise: Promise<boolean> | undefined;
 let audioGeneration = 0;
 let playbackRequest = 0;
+let recoveryNeeded = false;
 let hapticsUnlocked = false;
 let previousCellFrequency = 530;
 let lastCellFeedbackAt = 0;
@@ -76,12 +77,19 @@ function scheduleNotes(context: AudioContext, notes: readonly FeedbackNote[], vo
 }
 
 function resumeContext(context: AudioContext): Promise<boolean> {
-  if (context.state === "running") return Promise.resolve(true);
+  if (context.state === "running" && !recoveryNeeded) return Promise.resolve(true);
   if (context.state === "closed") return Promise.resolve(false);
   if (resumePromise !== undefined) return resumePromise;
   const generation = audioGeneration;
-  const pending = context.resume()
-    .then(() => audioContext === context && audioGeneration === generation && context.state === "running")
+  const activate = recoveryNeeded && context.state === "running"
+    ? context.suspend().catch(() => undefined).then(() => context.resume())
+    : context.resume();
+  const pending = activate
+    .then(() => {
+      const running = audioContext === context && audioGeneration === generation && context.state === "running";
+      if (running) recoveryNeeded = false;
+      return running;
+    })
     .catch(() => false)
     .finally(() => { if (resumePromise === pending) resumePromise = undefined; });
   resumePromise = pending;
@@ -93,7 +101,7 @@ function playNotes(notes: readonly FeedbackNote[], volume: number): void {
   const request = ++playbackRequest;
   const context = currentContext();
   if (context === undefined || context.state === "closed") return;
-  if (context.state === "running") {
+  if (context.state === "running" && !recoveryNeeded) {
     scheduleNotes(context, notes, volume);
     return;
   }
@@ -115,12 +123,10 @@ export async function startFeedback(settings: FeedbackSettings): Promise<void> {
 }
 
 export function resetFeedbackAudio(): void {
-  const context = audioContext;
-  audioContext = undefined;
   resumePromise = undefined;
   audioGeneration += 1;
   playbackRequest += 1;
-  if (context !== undefined && context.state !== "closed") void context.close().catch(() => undefined);
+  recoveryNeeded = audioContext !== undefined && audioContext.state !== "closed";
 }
 
 export function playFeedback(kind: FeedbackKind, settings: FeedbackSettings): void {

@@ -11,7 +11,7 @@ function audioContextStub() {
     currentTime: 0,
     destination: {},
     resume: vi.fn(() => new Promise<void>((resolve) => { resolveResume = resolve; })),
-    close: vi.fn(() => Promise.resolve()),
+    suspend: vi.fn(async () => { context.state = "suspended"; }),
     addEventListener: vi.fn((_type: string, listener: () => void) => { stateChange = listener; }),
     createOscillator: vi.fn(() => ({
       type: "sine",
@@ -112,7 +112,23 @@ describe("feedback audio lifecycle", () => {
     finishResume();
     await Promise.resolve();
 
-    expect(context.close).toHaveBeenCalledOnce();
     expect(start).not.toHaveBeenCalled();
+  });
+
+  it("cycles the authorized context before playing after a lifecycle reset", async () => {
+    const { context, start, finishResume } = audioContextStub();
+    const { playFeedback, resetFeedbackAudio, startFeedback } = await import("../src/feedback.js");
+    const ready = startFeedback(settings);
+    finishResume();
+    await ready;
+    expect(context.state).toBe("running");
+    resetFeedbackAudio();
+
+    playFeedback("start", settings);
+    await vi.waitFor(() => expect(context.suspend).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(context.resume).toHaveBeenCalledTimes(2));
+    finishResume();
+
+    await vi.waitFor(() => expect(start).toHaveBeenCalledTimes(2));
   });
 });
