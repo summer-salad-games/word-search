@@ -577,6 +577,10 @@ function Game({ initialSession, colorMode, feedbackSettings, isFinalPuzzle, comp
     playFeedback("start", feedbackSettings);
     onResetEverything();
   };
+  const continueJourney = () => {
+    playFeedback("start", feedbackSettings);
+    onNext(session);
+  };
 
   return (
     <main className={`app-shell${session.profile.columns < 8 ? " mobile-layout" : ""}`}>
@@ -596,7 +600,7 @@ function Game({ initialSession, colorMode, feedbackSettings, isFinalPuzzle, comp
       {debugJourneyOpen && <CollectionCompleteDialog records={lifetimeRecords} puzzleCount={THEMES.length} onReplay={replayJourney} onClose={() => setDebugJourneyOpen(false)} />}
       {!debugJourneyOpen && session.status === "completed" && (isFinalPuzzle
         ? <CollectionCompleteDialog session={session} records={lifetimeRecords} onReplay={replayJourney} />
-        : <WinDialog session={session} onNext={() => onNext(session)} />)}
+        : <WinDialog session={session} onNext={continueJourney} />)}
     </main>
   );
 }
