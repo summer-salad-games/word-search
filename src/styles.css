@@ -109,6 +109,8 @@ button { font: inherit; }
 .dialog h2 { margin: 4px 0 0; font-size: 2rem; letter-spacing: -.04em; }
 .dialog-copy { margin: 16px 0 0; color: var(--muted); line-height: 1.55; }
 .reset-actions { display: grid; gap: 10px; margin-top: 26px; }
+.support-dialog { text-align: left; }
+.support-link { width: fit-content; margin: 26px auto 0; display: flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
 .settings-dialog { display: flex; flex-direction: column; }
 .settings-list { display: grid; gap: 12px; margin-top: 26px; }
 .settings-list > label, .theme-setting { min-height: 68px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-soft); }

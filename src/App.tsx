@@ -20,13 +20,14 @@ declare global {
   interface Window { wordSearchDebug?: WordSearchDebugApi }
 }
 
-function Icon({ name }: { readonly name: "history" | "menu" | "moon" | "sun" | "close" }) {
+function Icon({ name }: { readonly name: "history" | "menu" | "moon" | "sun" | "close" | "support" }) {
   const paths = {
     history: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></>,
     moon: <path d="M20 15.5A8 8 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/>,
     sun: <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></>,
     close: <path d="m6 6 12 12M18 6 6 18"/>,
     menu: <><path d="M5 7h14M5 12h14M5 17h14"/></>,
+    support: <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/>,
   } as const;
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
@@ -503,6 +504,14 @@ function ResetEverythingDialog({ onConfirm, onClose }: { readonly onConfirm: () 
   </Modal>;
 }
 
+function SupportDialog({ onClose }: { readonly onClose: () => void }) {
+  return <Modal labelledBy="support-title" className="support-dialog" onClose={onClose}>
+    <header><div><p className="eyebrow">Support the game</p><h2 id="support-title">Enjoying the game?</h2></div><button className="icon-button" onClick={onClose} aria-label="Close support"><Icon name="close" /></button></header>
+    <p className="dialog-copy">Help keep Word Search growing with new themes and thoughtful improvements.</p>
+    <a className="primary-button support-link" href="https://ko-fi.com/axeyx" target="_blank" rel="noopener noreferrer">Support on Ko-fi <span aria-hidden="true">↗</span></a>
+  </Modal>;
+}
+
 function Game({ initialSession, colorMode, feedbackSettings, isFinalPuzzle, completedCount, lifetimeRecords, onColorMode, onFeedbackSettings, onSession, onComplete, onNext, onResetEverything, onDebugLoadTheme }: {
   readonly initialSession: GameSession; readonly colorMode: ColorMode; readonly onColorMode: (mode: ColorMode) => void;
   readonly feedbackSettings: FeedbackSettings; readonly onFeedbackSettings: (settings: FeedbackSettings) => void;
@@ -521,12 +530,13 @@ function Game({ initialSession, colorMode, feedbackSettings, isFinalPuzzle, comp
   const [debugWords, setDebugWords] = useState(false);
   const [debugJourneyOpen, setDebugJourneyOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [selectionIndex, setSelectionIndex] = useState(0);
   const theme = getTheme(session.themeId);
   const colors = useMemo(() => new Map(session.targetWords.map((word, index) => [word, theme.colors[index % theme.colors.length]!])), [session.targetWords, theme.colors]);
   const currentColor = theme.colors[selectionIndex % theme.colors.length]!;
-  const { elapsed, getElapsed, pause } = useGameTimer(session, historyOpen || menuOpen || resetOpen || debugJourneyOpen || hidden, (value) => dispatch({ type: "set-elapsed", elapsedMs: value }));
+  const { elapsed, getElapsed, pause } = useGameTimer(session, historyOpen || menuOpen || supportOpen || resetOpen || debugJourneyOpen || hidden, (value) => dispatch({ type: "set-elapsed", elapsedMs: value }));
   const cellFeedback = useCallback((kind: "cell" | "reject") => playFeedback(kind, feedbackSettings), [feedbackSettings]);
 
   useEffect(() => onSession(session), [onSession, session]);
@@ -584,7 +594,7 @@ function Game({ initialSession, colorMode, feedbackSettings, isFinalPuzzle, comp
 
   return (
     <main className={`app-shell${session.profile.columns < 8 ? " mobile-layout" : ""}`}>
-      <header className="topbar"><h1>{theme.title}</h1><div className="topbar-actions"><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button><button className="icon-button" onClick={() => { pause(); setMenuOpen(true); }} aria-label="Open menu"><Icon name="menu" /></button></div></header>
+      <header className="topbar"><h1>{theme.title}</h1><div className="topbar-actions"><button className="icon-button" onClick={() => void openHistory()} aria-label="Open history"><Icon name="history" /></button><button className="icon-button" onClick={() => { pause(); setSupportOpen(true); }} aria-label="Support the game"><Icon name="support" /></button><button className="icon-button" onClick={() => { pause(); setMenuOpen(true); }} aria-label="Open menu"><Icon name="menu" /></button></div></header>
       <div className="puzzle-content">
         <section className="word-list" aria-label="Words to find">{session.targetWords.map((word) => {
           const solved = session.solvedWords.includes(word);
@@ -595,6 +605,7 @@ function Game({ initialSession, colorMode, feedbackSettings, isFinalPuzzle, comp
       </div>
       <footer className="game-footer"><span>{session.solvedWords.length} / {session.targetWords.length} found</span><span className="timer" aria-label={`Elapsed time ${formatDuration(elapsed)}`}>{formatDuration(elapsed)}</span></footer>
       {historyOpen && <HistoryDialog records={history} completedCount={completedCount} onClose={() => setHistoryOpen(false)} />}
+      {supportOpen && <SupportDialog onClose={() => setSupportOpen(false)} />}
       {menuOpen && <SettingsDialog settings={feedbackSettings} colorMode={colorMode} onSettings={onFeedbackSettings} onColorMode={onColorMode} onReset={() => { setMenuOpen(false); setResetOpen(true); }} onClose={() => setMenuOpen(false)} />}
       {resetOpen && <ResetEverythingDialog onConfirm={onResetEverything} onClose={() => setResetOpen(false)} />}
       {debugJourneyOpen && <CollectionCompleteDialog records={lifetimeRecords} puzzleCount={THEMES.length} onReplay={replayJourney} onClose={() => setDebugJourneyOpen(false)} />}

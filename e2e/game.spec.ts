@@ -205,6 +205,20 @@ test("pauses the timer and persists volume and vibration preferences", async ({ 
   await expect(page.getByRole("checkbox", { name: /Vibration/ })).not.toBeChecked();
 });
 
+test("opens the Ko-fi support dialog without leaving the game", async ({ page }) => {
+  await enterGame(page);
+  await page.getByRole("button", { name: "Support the game" }).click();
+  const dialog = page.getByRole("dialog", { name: "Enjoying the game?" });
+  await expect(dialog).toBeVisible();
+  const link = dialog.getByRole("link", { name: /Support on Ko-fi/ });
+  await expect(link).toHaveAttribute("href", "https://ko-fi.com/axeyx");
+  await expect(link).toHaveAttribute("target", "_blank");
+  await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(page.locator(".puzzle-grid")).toBeVisible();
+});
+
 test("fits a large iPhone when Safari exposes less height than the physical screen", async ({ browser }) => {
   const context = await browser.newContext({
     viewport: { width: 430, height: 740 },
